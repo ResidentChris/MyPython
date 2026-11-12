@@ -78,7 +78,15 @@ if __name__ == "__main__":
         },
     }
 
-    classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    # TODO: Temporary fix. Only the My* command classes are kept; other
+    # imported classes (e.g. Colour) would otherwise show up in help as bogus
+    # commands like 'lour'. Replace with a more robust approach, e.g. an
+    # explicit registry of command classes instead of discovering every class
+    # imported into this module by name.
+    classes = [
+        member for member in inspect.getmembers(sys.modules[__name__], inspect.isclass)
+        if member[0].startswith('My')
+    ]
 
     descriptions: dict[str, str] = {
         'git': 'Pull, push, review, checkout, or commit changes',
