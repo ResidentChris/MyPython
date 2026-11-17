@@ -252,7 +252,8 @@ def my_status(shell=subprocess.Popen, print_selection_list=True):
 
 def get_all_changes(shell=subprocess.Popen):
     changes = popen(['git', '-c', 'color.status=always', 'status', '--short'], shell)
-    return [{'path': change.split()[1], 'pretty': change} for change in changes]
+    # Last token is the destination path, which handles "R  old -> new" renames
+    return [{'path': change.split()[-1], 'pretty': change} for change in changes]
 
 
 def get_unstaged_changes(all_changes = None, shell=subprocess.Popen):
@@ -262,11 +263,10 @@ def get_unstaged_changes(all_changes = None, shell=subprocess.Popen):
 
     unstaged_changes_pretty = [change for change in all_changes if change['path'] in unstaged_changes]
     if len(unstaged_changes_pretty) == len(unstaged_changes):
-        unstaged_changes = unstaged_changes_pretty
-    else:
-        print("%sWarning%s: couldn't find pretty entries for all unstaged changes, displaying path only.\n" % (Colour.YELLOW.value, Colour.CLEAR.value))
+        return unstaged_changes_pretty
 
-    return unstaged_changes
+    print("%sWarning%s: couldn't find pretty entries for all unstaged changes, displaying path only.\n" % (Colour.YELLOW.value, Colour.CLEAR.value))
+    return [{'path': path, 'pretty': path} for path in unstaged_changes]
 
 
 def popen(command, shell=subprocess.Popen):
