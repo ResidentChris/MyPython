@@ -16,6 +16,16 @@ class MyGradle:
         self.webapps = arguments['gradle']['webapps']
         self.shell = shell
         self.prompt = prompt
+        self.descriptions = dict([
+            ('here', 'Prefix: run the following commands in the current directory instead of Backend'),
+            ('clean', 'Run gradle clean'),
+            ('format', 'Run gradle format in Backend'),
+            ('install', 'Run gradle build (add "quickly" to skip tests)'),
+            ('build', 'Alias for install'),
+            ('assemble', 'Run gradle assemble, skipping tests'),
+            ('deploy', 'Copy built WARs into Tomcat webapps'),
+            ('deps', 'Write each webapp\'s dependency tree to build/reports'),
+        ])
 
         print('Running Gradle in %s.' % os.getcwd())
 
@@ -53,6 +63,9 @@ class MyGradle:
 
             elif command == "deps":
                 self.deps(commands)
+
+            elif command == "help" or command == "-h" or command == "--help":
+                self.help(commands)
 
             else:
                 commands.insert(0, command)
@@ -162,3 +175,13 @@ class MyGradle:
             # print('  file:///%s/build/reports/dependency-check-report.html\n' % webapp_dir)
 
         self.run(commands)
+
+    def help(self, commands):
+        if len(commands) >= 1 and commands[0] in self.descriptions:
+            command = commands.pop(0)
+            print('    %-10s %s' % (command, self.descriptions[command]))
+            self.run(commands)
+        else:
+            print('Possible commands are:')
+            for command, description in self.descriptions.items():
+                print('    %-10s %s' % (command, description))
