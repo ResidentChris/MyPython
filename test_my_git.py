@@ -314,6 +314,44 @@ class MyStatusHelperTests(unittest.TestCase):
         unstaged = get_unstaged_changes(shell=shell)
         self.assertEqual([c['path'] for c in unstaged], ['foo.py'])
 
+    def test_get_all_changes_uses_destination_path_for_renames(self):
+        shell = FakeShell([FakeProcess(stdout=b'RM old/Foo.java -> new/FooImpl.java\n M bar.py\n')])
+        changes = get_all_changes(shell)
+        self.assertEqual([c['path'] for c in changes], ['new/FooImpl.java', 'bar.py'])
+
+    def test_get_all_changes_uses_destination_path_for_coloured_renames(self):
+        shell = FakeShell([FakeProcess(
+            stdout=b'\x1b[32mR\x1b[m\x1b[31mM\x1b[m old/Foo.java -> new/FooImpl.java\n')])
+        changes = get_all_changes(shell)
+        self.assertEqual([c['path'] for c in changes], ['new/FooImpl.java'])
+
+    def test_get_unstaged_changes_matches_renamed_file_with_unstaged_edits(self):
+        # Regression test: a staged rename with further unstaged edits used to
+        # be keyed by its old path, so it never matched diff-files' new path.
+        shell = FakeShell([
+            FakeProcess(stdout=b'RM old/Foo.java -> new/FooImpl.java\n M bar.py\n'),
+            FakeProcess(stdout=b':100644 100644 aaa bbb M\tnew/FooImpl.java\n'
+                               b':100644 100644 ccc ddd M\tbar.py\n'),
+        ])
+        unstaged = get_unstaged_changes(shell=shell)
+        self.assertEqual([c['path'] for c in unstaged], ['new/FooImpl.java', 'bar.py'])
+        self.assertEqual(unstaged[0]['pretty'], 'RM old/Foo.java -> new/FooImpl.java')
+
+    def test_get_unstaged_changes_falls_back_to_path_dicts_when_unmatched(self):
+        # Regression test: the fallback used to return bare strings, so callers
+        # reading change['pretty'] crashed with a TypeError.
+        shell = FakeShell([
+            FakeProcess(stdout=b' M foo.py\n'),
+            FakeProcess(stdout=b':100644 100644 aaa bbb M\tfoo.py\n'
+                               b':100644 100644 ccc ddd M\tmystery.py\n'),
+        ])
+        with patch('builtins.print'):
+            unstaged = get_unstaged_changes(shell=shell)
+        self.assertEqual(unstaged, [
+            {'path': 'foo.py', 'pretty': 'foo.py'},
+            {'path': 'mystery.py', 'pretty': 'mystery.py'},
+        ])
+
     def test_my_status_reports_false_when_no_changes(self):
         shell = FakeShell([FakeProcess(stdout=b'')])
         self.assertFalse(my_status(shell))
