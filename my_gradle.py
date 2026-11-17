@@ -36,6 +36,9 @@ class MyGradle:
             elif command == "format":
                 self.format(commands)
 
+            elif command == "test":
+                self.test(commands)
+
             elif command == "install" or command == 'build':
                 self.install(commands)
 
@@ -54,6 +57,14 @@ class MyGradle:
     def clean(self, commands):
         cwd = self.shell([self.gradlew(os.getcwd()), "clean"], cwd=os.getcwd())
         cwd.wait()
+        self.run(commands)
+
+    def test(self, commands):
+        cwd = self.shell([self.gradlew(os.getcwd()), 'test'], cwd=os.getcwd())
+        status = cwd.wait()
+        if status != 0:
+            print('Tests %sfailed%s.' % (Colour.RED.value, Colour.CLEAR.value))
+            sys.exit(status)
         self.run(commands)
 
     def format(self, commands):
