@@ -2,10 +2,10 @@
 
 import os
 import subprocess
+import sys
 from shutil import copyfile
 from time import time
 from my_colours import Colour
-from my_colours import Options
 
 
 class MyGradle:
@@ -17,11 +17,14 @@ class MyGradle:
         self.shell = shell
         self.prompt = prompt
 
-        self.here = False
-        if len(commands) > 0 and commands[0] == 'here':
-            commands.pop(0)
-            self.here = True
-            print('Running Gradle in %s.' % os.getcwd())
+        print('Running Gradle in %s.' % os.getcwd())
+
+    def gradlew(self, directory):
+        if not os.path.isfile(os.path.join(directory, 'gradlew')):
+            print('%sNo Gradle wrapper (gradlew) found in %s.%s Run this from a directory that contains gradlew.'
+                  % (Colour.RED.value, directory, Colour.CLEAR.value))
+            sys.exit(1)
+        return './gradlew'
 
     def run(self, commands):
         if len(commands) >= 1:
@@ -49,18 +52,13 @@ class MyGradle:
                 commands.insert(0, command)
 
     def clean(self, commands):
-        if self.here:
-            cwd = self.shell(["gradle", "clean"], cwd=os.getcwd())
-            cwd.wait()
-        else:
-            be = self.shell(["gradle", "clean"],
-                            cwd=self.repos['Backend'])
-            be.wait()
+        cwd = self.shell([self.gradlew(os.getcwd()), "clean"], cwd=os.getcwd())
+        cwd.wait()
         self.run(commands)
 
     def format(self, commands):
-        be = self.shell(['gradle', 'format'], cwd=self.repos['Backend'])
-        be.wait()
+        cwd = self.shell([self.gradlew(os.getcwd()), 'format'], cwd=os.getcwd())
+        cwd.wait()
         self.run(commands)
 
     def install(self, commands, skip_tests = False):
@@ -79,72 +77,38 @@ class MyGradle:
                 % (Colour.GREEN.value, Colour.CLEAR.value)
             )
 
-        if self.here:
-            install_commands = ['gradle', 'assemble' if skip_tests else 'build']
+        install_commands = [self.gradlew(os.getcwd()), 'assemble' if skip_tests else 'build']
 
-            cwd_log = open("%s/cwd.log" % self.logs, "w")
-            print("Installing %s (logging to %s)..." %
-                  (os.getcwd().split('\\')[-1], cwd_log.name))
+        cwd_log = open("%s/cwd.log" % self.logs, "w")
+        print("Installing %s (logging to %s)..." %
+              (os.getcwd().split('\\')[-1], cwd_log.name))
 
-            cwd_start = time()
-            cwd = self.shell(install_commands,
-                             cwd=os.getcwd())
-            cwd_status = cwd.wait()
-            cwd_log.close()
-            if cwd_status > 0:
-                print("Installation %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
-                print('Continue anyway? [y/N]')
-                response = self.prompt()
-                if response.upper() == 'Y':
-                    self.run(commands)
-                else:
-                    exit()
-            else:
-                print("Installation %ssucceeded%s in %d s." %
-                      (Colour.GREEN.value, Colour.CLEAR.value, time() - cwd_start))
-            if cwd_status == 0:
+        cwd_start = time()
+        cwd = self.shell(install_commands,
+                         cwd=os.getcwd())
+        cwd_status = cwd.wait()
+        cwd_log.close()
+        if cwd_status > 0:
+            print("Installation %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
+            print('Continue anyway? [y/N]')
+            response = self.prompt()
+            if response.upper() == 'Y':
                 self.run(commands)
-
+            else:
+                exit()
         else:
-            print("Installing Backend")
-            be_start = time()
-            be_install_commands = ['gradle', 'assemble' if skip_tests else 'build']
-            be = self.shell(be_install_commands,
-                            cwd=self.repos['Backend'])
-            be_status = be.wait()
-            if be_status == 0:
-                print("BE installation %ssucceeded%s in %d s." %
-                      (Colour.GREEN.value, Colour.CLEAR.value, time() - be_start))
-                self.run(commands)
-            else:
-                print("Backend installation %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
-                if len(commands) == 0:
-                    print("\n%s? [A]" % Options(['Retry', Colour.BLUE], ['Abort', Colour.CLEAR]), end=" ")
-                else:
-                    print("\n%s? [A]" % Options(['Continue', Colour.GREEN], ['Retry', Colour.BLUE], ['Abort', Colour.CLEAR]), end=" ")
-                response = self.prompt()
-                if response.upper() == 'C':
-                    self.run(commands)
-                elif response.upper() == 'R':
-                    if skip_tests:
-                        commands.insert(0, 'quickly')
-                    commands.insert(0, 'build')
-                    self.run(commands)
-                else:
-                    exit()
+            print("Installation %ssucceeded%s in %d s." %
+                  (Colour.GREEN.value, Colour.CLEAR.value, time() - cwd_start))
+        if cwd_status == 0:
+            self.run(commands)
 
     def deploy(self, commands):
-        if self.here:
-            cwd = os.getcwd()
-            for webapp in self.webapps:
-                if cwd.endswith(webapp['module']):
-                    print('Deploying %s only.' % webapp['abbreviation'])
-                    self.deploy_webapp(webapp)
-                    break
-        else:
-            print('Deploying %s.' % ' and '.join(w['abbreviation'] for w in self.webapps))
-            for webapp in self.webapps:
+        cwd = os.getcwd()
+        for webapp in self.webapps:
+            if cwd.endswith(webapp['module']):
+                print('Deploying %s only.' % webapp['abbreviation'])
                 self.deploy_webapp(webapp)
+                break
         self.run(commands)
 
     def webapp_dir(self, webapp):
@@ -164,7 +128,7 @@ class MyGradle:
             reports_dir = '%s/build/reports' % webapp_dir
             if not os.path.isdir(reports_dir):
                 os.mkdir(reports_dir)
-            self.shell(['gradle', 'dependencies', '>', '%s/dependency-tree.txt' % reports_dir], cwd=webapp_dir).wait()
+            self.shell([self.gradlew(webapp_dir), 'dependencies', '>', '%s/dependency-tree.txt' % reports_dir], cwd=webapp_dir).wait()
 
         print('\nDEPENDENCY INFORMATION (Ctrl-click links to open)\n')
 
