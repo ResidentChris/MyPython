@@ -17,13 +17,14 @@ class MyGradle:
         self.shell = shell
         self.prompt = prompt
         self.descriptions = dict([
-            ('here', 'Prefix: run the following commands in the current directory instead of Backend'),
-            ('clean', 'Run gradle clean'),
-            ('format', 'Run gradle format in Backend'),
-            ('install', 'Run gradle build (add "quickly" to skip tests)'),
+            ('clean', 'Run ./gradlew clean'),
+            ('format', 'Run ./gradlew format'),
+            ('test', 'Run ./gradlew test, stopping if the tests fail'),
+            ('install', 'Run ./gradlew build (add "quickly" to skip tests)'),
             ('build', 'Alias for install'),
-            ('assemble', 'Run gradle assemble, skipping tests'),
-            ('deploy', 'Copy built WARs into Tomcat webapps'),
+            ('assemble', 'Run ./gradlew assemble, skipping tests'),
+            ('publish', 'Run ./gradlew publishToMavenLocal, stopping if it fails'),
+            ('deploy', 'Copy the WAR for the webapp in the current directory into Tomcat webapps'),
             ('deps', 'Write each webapp\'s dependency tree to build/reports'),
         ])
 
