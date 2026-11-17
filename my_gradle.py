@@ -45,6 +45,9 @@ class MyGradle:
             elif command == 'assemble':
                 self.install(commands, True)
 
+            elif command == "publish":
+                self.publish(commands)
+
             elif command == "deploy":
                 self.deploy(commands)
 
@@ -64,6 +67,14 @@ class MyGradle:
         status = cwd.wait()
         if status != 0:
             print('Tests %sfailed%s.' % (Colour.RED.value, Colour.CLEAR.value))
+            sys.exit(status)
+        self.run(commands)
+
+    def publish(self, commands):
+        cwd = self.shell([self.gradlew(os.getcwd()), 'publishToMavenLocal'], cwd=os.getcwd())
+        status = cwd.wait()
+        if status != 0:
+            print('Publish to Maven Local %sfailed%s.' % (Colour.RED.value, Colour.CLEAR.value))
             sys.exit(status)
         self.run(commands)
 

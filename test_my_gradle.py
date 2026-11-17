@@ -100,6 +100,27 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
         self.assertNotEqual(raised.exception.code, 0)
         self.assertEqual([call[0][0] for call in shell.calls], [['./gradlew', 'test']])
 
+    def test_publish_runs_publish_to_maven_local_in_cwd(self):
+        shell = FakeShell()
+        with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
+            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle.run(['publish', 'clean'])
+        self.assertEqual(shell.calls, [
+            ((['./gradlew', 'publishToMavenLocal'],), {'cwd': '/cwd/project'}),
+            ((['./gradlew', 'clean'],), {'cwd': '/cwd/project'}),
+        ])
+
+    def test_publish_failure_stops_and_exits_nonzero(self):
+        shell = FakeShell([FakeProcess(returncode=1)])
+        with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
+            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', shell=shell, prompt=queued_prompt())
+            with self.assertRaises(SystemExit) as raised:
+                gradle.run(['publish', 'clean'])
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertEqual(len(shell.calls), 1)
+
 
 class MyGradleInstallTests(GradlewPresentTestCase):
     def setUp(self):
