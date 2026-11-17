@@ -122,6 +122,30 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
         self.assertEqual(len(shell.calls), 1)
 
 
+class MyGradleHelpTests(GradlewPresentTestCase):
+    def make_gradle(self, shell):
+        return MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                        '/logs', shell=shell, prompt=queued_prompt())
+
+    def test_help_flags_are_consumed(self):
+        for flag in ['help', '-h', '--help']:
+            with self.subTest(flag=flag):
+                shell = FakeShell()
+                commands = [flag]
+                with patch('builtins.print'):
+                    self.make_gradle(shell).run(commands)
+                self.assertEqual(commands, [])
+                self.assertEqual(shell.calls, [])
+
+    def test_help_for_a_command_consumes_both_without_running_it(self):
+        shell = FakeShell()
+        commands = ['help', 'clean']
+        with patch('builtins.print'):
+            self.make_gradle(shell).run(commands)
+        self.assertEqual(commands, [])
+        self.assertEqual(shell.calls, [])
+
+
 class MyGradleInstallTests(GradlewPresentTestCase):
     def setUp(self):
         super().setUp()
