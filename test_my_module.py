@@ -8,6 +8,7 @@ from unittest.mock import patch
 import my
 from my_colours import Colour
 from my_module import MyAbstractModule, MyModule, find_modules
+from my_settings import DEFAULTS_FILE, load_settings
 from testing_support import FakeShell
 
 
@@ -163,16 +164,8 @@ class MyAbstractModuleHelpTests(unittest.TestCase):
         self.assertEqual(module.ran, ['second'])
 
 
-# Fake configuration, enough to construct every command module.
-ARGUMENTS = {
-    'git': {'repos': {'FrontEnd': '/fake/frontend'}},
-    'tomcat': {'tomcat_home': '/fake/tomcat'},
-    'gradle': {'webapps': []},
-    'harness': {'folder': '/fake/harness', 'url': 'http://localhost'},
-    'npm': {'wsl_user': 'tester', 'environment': {}},
-    'qmk': {'folder': '/fake/qmk', 'keyboard': 'kb', 'keymap': 'km'},
-    'xc': {'folder': '/fake/xc', 'workspace': 'App.xcworkspace', 'scheme': 'App'},
-}
+# The default settings must be enough to construct every command module.
+ARGUMENTS = load_settings('/fake/repo', DEFAULTS_FILE)
 
 
 def classes_imported_into_my():
