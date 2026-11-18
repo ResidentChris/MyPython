@@ -16,15 +16,24 @@ MAIN_BRANCH = 'main'
 ANSI_ESCAPE = re.compile(r'\033\[[0-9;]*m')
 
 
+# Returned by a select when the user asks for the list to be refreshed.
+REFRESH = 'refresh'
+REFRESH_KEYS = ('r', 'R', 'd', 'D')
+
+
 def default_select(items):
     choices = [questionary.Choice(title=ANSI(item).__pt_formatted_text__(), value=i)
                for i, item in enumerate(items)]
     choices.append(questionary.Separator(" "))
-    question = questionary.select("", choices=choices)
+    question = questionary.select("", choices=choices, instruction="(Use arrow keys, r to refresh)")
+    bindings = question.application.key_bindings
 
-    @question.application.key_bindings.add(Keys.Escape, eager=True)
+    @bindings.add(Keys.Escape, eager=True)
     def _cancel(event):
         event.app.exit(result=None)
+
+    for key in REFRESH_KEYS:
+        bindings.add(key, eager=True)(lambda event: event.app.exit(result=REFRESH))
 
     return question.ask()
 
@@ -141,10 +150,14 @@ class MyGit(MyAbstractModule):
 
     def diff(self, commands):
         if len(commands) == 0:
-            if not self.show_status(print_selection_list=False):
+            def unstaged_changes():
+                if not self.show_status(print_selection_list=False):
+                    return []
+                return self.get_unstaged_changes()
+
+            index, changes = self.choose(unstaged_changes, lambda change: change['pretty'])
+            if len(changes) == 0:
                 exit()
-            changes = self.get_unstaged_changes()
-            index = self.select([change['pretty'] for change in changes])
             if index is None:
                 self.run(commands)
                 return
@@ -192,12 +205,11 @@ class MyGit(MyAbstractModule):
             self.status(commands)
 
     def add_untracked(self, commands):
-        untracked = self.get_untracked_changes()
+        index, untracked = self.choose(self.get_untracked_changes, lambda change: change['pretty'])
         if len(untracked) == 0:
             print("No untracked files.\n")
             self.run(commands)
             return
-        index = self.select([change['pretty'] for change in untracked])
         if index is None:
             self.run(commands)
             return
@@ -240,22 +252,25 @@ class MyGit(MyAbstractModule):
 
     def checkout_in_folder(self, ticketList, folder):
         repo = git.Repo(folder)
-        branches = repo.git.branch('-a')
         for ticket in ticketList.split(","):
-            branch = self.resolve_branch(ticket, branches)
+            branch = self.resolve_branch(ticket, lambda: repo.git.branch('-a'))
             if ticket != MAIN_BRANCH:
                 break
         repo.git.checkout(branch)
         return 0
 
-    def resolve_branch(self, ticket, branches):
-        remote_matches = re.findall("(?:remotes/)?origin/([^\\s]*%s[^\\s]*)" % ticket,
-                             branches,
-                             flags=re.IGNORECASE)
-        local_matches = re.findall("^\\*?\\s*(?!(?:remotes/)?origin/)([^\\s]*%s[^\\s]*)" % ticket,
-                             branches,
-                             flags=re.IGNORECASE | re.MULTILINE)
-        matches = list(dict.fromkeys(remote_matches + local_matches))
+    def resolve_branch(self, ticket, get_branches):
+        def matching_branches():
+            branches = get_branches()
+            remote_matches = re.findall("(?:remotes/)?origin/([^\\s]*%s[^\\s]*)" % ticket,
+                                 branches,
+                                 flags=re.IGNORECASE)
+            local_matches = re.findall("^\\*?\\s*(?!(?:remotes/)?origin/)([^\\s]*%s[^\\s]*)" % ticket,
+                                 branches,
+                                 flags=re.IGNORECASE | re.MULTILINE)
+            return list(dict.fromkeys(remote_matches + local_matches))
+
+        matches = matching_branches()
         if len(matches) == 0:
             print("%sCheckout: No matching branch found.%s" % (Colour.RED.value, Colour.CLEAR.value))
             exit(1)
@@ -265,17 +280,33 @@ class MyGit(MyAbstractModule):
         elif len(matches) == 1:
             return matches[0]
         else:
-            index = self.select(matches)
+            index, matches = self.choose(matching_branches, items=matches)
             if index is None:
                 print("Cancelled.")
                 exit(1)
             return matches[index]
 
+    def choose(self, get_items, label=lambda item: item, items=None):
+        """Let the user pick one of get_items() with the arrow keys.
+
+        'r' or 'd' fetches the items again and shows the new list. Returns
+        (index, items) for the list the user picked from; index is None if
+        they pressed Escape, or if there was nothing to pick from.
+        """
+        if items is None:
+            items = get_items()
+        while len(items) > 0:
+            index = self.select([label(item) for item in items])
+            if index != REFRESH:
+                return index, items
+            self.shell("clear")
+            items = get_items()
+        return None, items
+
     def work(self, commands):
         ticket = commands.pop(0)
         repo = git.Repo(self.repositories)
-        branches = repo.git.branch('-r')
-        branch = self.resolve_branch(ticket, branches)
+        branch = self.resolve_branch(ticket, lambda: repo.git.branch('-r'))
 
         worktrees_dir = os.path.join(self.repositories, '.worktrees')
         os.makedirs(worktrees_dir, exist_ok=True)
