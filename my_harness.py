@@ -3,6 +3,7 @@
 import os
 import re
 import subprocess
+import threading
 import time
 from sys import exit
 from my_colours import Colour
@@ -61,6 +62,8 @@ class MyHarness(MyAbstractModule):
     def web_run(self):
         test_harness = self.start_web_harness()
         wait(test_harness, "compiled successfully")
+        # Keep showing the harness's output, so its pipe never fills up and blocks it.
+        threading.Thread(target=echo, args=(test_harness.stdout,), daemon=True).start()
 
         chromium = self.start_chromium()
 
@@ -111,6 +114,11 @@ class MyHarness(MyAbstractModule):
             "--use-mock-keychain",
             self.url
         ])
+
+
+def echo(stream):
+    for line in stream:
+        print(line, end="")
 
 
 def wait(process, text):
