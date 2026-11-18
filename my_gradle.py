@@ -27,8 +27,8 @@ class MyGradle(MyAbstractModule):
             'clean': 'Run ./gradlew clean',
             'format': 'Run ./gradlew format',
             'test': 'Run ./gradlew test, stopping if the tests fail',
-            'install': 'Run ./gradlew build (add "quickly" to skip tests)',
-            'build': 'Alias for install',
+            'build': 'Run ./gradlew build (add "quickly" to skip tests)',
+            'install': 'Alias for build',
             'assemble': 'Run ./gradlew assemble, skipping tests',
             'publish': 'Run ./gradlew publishToMavenLocal, stopping if it fails',
             'deploy': 'Copy the WAR for the webapp in the current directory into Tomcat webapps',
@@ -56,11 +56,11 @@ class MyGradle(MyAbstractModule):
             elif command == "test":
                 self.test(commands)
 
-            elif command == "install" or command == 'build':
-                self.install(commands)
+            elif command == 'build' or command == "install":
+                self.build(commands)
 
             elif command == 'assemble':
-                self.install(commands, True)
+                self.build(commands, True)
 
             elif command == "publish":
                 self.publish(commands)
@@ -103,7 +103,7 @@ class MyGradle(MyAbstractModule):
         cwd.wait()
         self.run(commands)
 
-    def install(self, commands, skip_tests = False):
+    def build(self, commands, skip_tests = False):
         if len(commands) > 0 and commands[0] == 'quickly':
             commands.pop(0)
             skip_tests = True
@@ -119,19 +119,19 @@ class MyGradle(MyAbstractModule):
                 % (Colour.GREEN.value, Colour.CLEAR.value)
             )
 
-        install_commands = [self.gradlew(os.getcwd()), 'assemble' if skip_tests else 'build']
+        build_commands = [self.gradlew(os.getcwd()), 'assemble' if skip_tests else 'build']
 
         cwd_log = open("%s/cwd.log" % self.logs, "w")
-        print("Installing %s (logging to %s)..." %
+        print("Building %s (logging to %s)..." %
               (os.getcwd().split('\\')[-1], cwd_log.name))
 
         cwd_start = time()
-        cwd = self.shell(install_commands,
+        cwd = self.shell(build_commands,
                          cwd=os.getcwd())
         cwd_status = cwd.wait()
         cwd_log.close()
         if cwd_status > 0:
-            print("Installation %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
+            print("Build %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
             print('Continue anyway? [y/N]')
             response = self.prompt()
             if response.upper() == 'Y':
@@ -139,7 +139,7 @@ class MyGradle(MyAbstractModule):
             else:
                 exit()
         else:
-            print("Installation %ssucceeded%s in %d s." %
+            print("Build %ssucceeded%s in %d s." %
                   (Colour.GREEN.value, Colour.CLEAR.value, time() - cwd_start))
         if cwd_status == 0:
             self.run(commands)

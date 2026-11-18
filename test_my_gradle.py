@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from my_gradle import MyGradle
 from testing_support import FakeProcess, FakeShell, queued_prompt, with_shell
@@ -159,35 +159,44 @@ class MyGradleInstallTests(GradlewPresentTestCase):
                         '/repo', self.tmp, 
                         prompt=prompt or queued_prompt()), shell)
 
-    def test_install_success_builds_in_cwd(self):
+    def test_build_and_install_both_run_build(self):
+        for command in ['build', 'install']:
+            with self.subTest(command=command):
+                with patch('builtins.print'):
+                    gradle = self.make_gradle(FakeShell())
+                gradle.build = MagicMock()
+                gradle.run([command, 'quickly'])
+                gradle.build.assert_called_once_with(['quickly'])
+
+    def test_build_success_builds_in_cwd(self):
         shell = FakeShell([FakeProcess(returncode=0)])
         with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'):
             gradle = self.make_gradle(shell)
-            gradle.install([])
+            gradle.build([])
         self.assertEqual(shell.calls, [((['./gradlew', 'build'],), {'cwd': '/cwd/App-Alpha'})])
 
-    def test_install_quickly_assembles_instead_of_building(self):
+    def test_build_quickly_assembles_instead_of_building(self):
         shell = FakeShell([FakeProcess(returncode=0)])
         with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'):
             gradle = self.make_gradle(shell)
-            gradle.install(['quickly'])
+            gradle.build(['quickly'])
         self.assertEqual(shell.calls, [((['./gradlew', 'assemble'],), {'cwd': '/cwd/App-Alpha'})])
 
-    def test_install_failure_then_continue_runs_remaining_commands(self):
+    def test_build_failure_then_continue_runs_remaining_commands(self):
         shell = FakeShell([FakeProcess(returncode=1), FakeProcess(returncode=0)])
         with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'):
             gradle = self.make_gradle(shell, prompt=queued_prompt('y'))
-            gradle.install(['clean'])
+            gradle.build(['clean'])
         self.assertEqual(shell.calls, [
             ((['./gradlew', 'build'],), {'cwd': '/cwd/App-Alpha'}),
             ((['./gradlew', 'clean'],), {'cwd': '/cwd/App-Alpha'}),
         ])
 
-    def test_install_failure_then_abort_exits(self):
+    def test_build_failure_then_abort_exits(self):
         shell = FakeShell([FakeProcess(returncode=1)])
         gradle = self.make_gradle(shell, prompt=queued_prompt('n'))
         with self.assertRaises(SystemExit):
-            gradle.install(['clean'])
+            gradle.build(['clean'])
         self.assertEqual(len(shell.calls), 1)
 
 
