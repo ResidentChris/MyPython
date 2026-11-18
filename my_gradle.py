@@ -32,7 +32,6 @@ class MyGradle(MyAbstractModule):
             'assemble': 'Run ./gradlew assemble, skipping tests',
             'publish': 'Run ./gradlew publishToMavenLocal, stopping if it fails',
             'deploy': 'Copy the WAR for the webapp in the current directory into Tomcat webapps',
-            'deps': 'Write each webapp\'s dependency tree to build/reports',
         }
         print('Running Gradle in %s.' % os.getcwd())
 
@@ -67,9 +66,6 @@ class MyGradle(MyAbstractModule):
 
             elif command == "deploy":
                 self.deploy(commands)
-
-            elif command == "deps":
-                self.deps(commands)
 
             elif self.is_help(command):
                 self.help(commands)
@@ -161,24 +157,3 @@ class MyGradle(MyAbstractModule):
             '%s/build/libs/%s' % (self.webapp_dir(webapp), webapp['war']),
             '%s/%s' % (self.tomcat_webapps, webapp['war'])
         )
-
-    def deps(self, commands):
-        # subprocess.Popen(['gradle', 'dependencyCheckAnalyze'], cwd=self.repos['Backend']).wait()
-
-        for webapp in self.webapps:
-            webapp_dir = self.webapp_dir(webapp)
-            reports_dir = '%s/build/reports' % webapp_dir
-            if not os.path.isdir(reports_dir):
-                os.mkdir(reports_dir)
-            self.shell([self.gradlew(webapp_dir), 'dependencies', '>', '%s/dependency-tree.txt' % reports_dir], cwd=webapp_dir).wait()
-
-        print('\nDEPENDENCY INFORMATION (Ctrl-click links to open)\n')
-
-        for webapp in self.webapps:
-            webapp_dir = self.webapp_dir(webapp)
-            print('%s dependency tree:' % webapp['name'])
-            print('  file:///%s/build/reports/dependency-tree.txt\n' % webapp_dir)
-            # print('%s vulnerability scan:' % webapp['name'])
-            # print('  file:///%s/build/reports/dependency-check-report.html\n' % webapp_dir)
-
-        self.run(commands)

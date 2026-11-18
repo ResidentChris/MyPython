@@ -21,14 +21,12 @@ tomcat_home = ""
 # folder under Backend, 'project' the Gradle subproject.
 [[gradle.webapps]]
 abbreviation = "A1"
-name = "Webapp One"
 module = "Webapp-One"
 project = "webapp_one"
 war = "webapp_one.war"
 
 [[gradle.webapps]]
 abbreviation = "A2"
-name = "Webapp Two"
 module = "Webapp-Two"
 project = "webapp_two"
 war = "webapp_two.war"

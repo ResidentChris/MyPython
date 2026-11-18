@@ -9,9 +9,9 @@ from testing_support import FakeProcess, FakeShell, queued_prompt, with_shell
 
 
 WEBAPPS = [
-    {'abbreviation': 'AA', 'name': 'App Alpha', 'module': 'App-Alpha',
+    {'abbreviation': 'AA', 'module': 'App-Alpha',
      'project': 'app_alpha_webapp', 'war': 'app_alpha.war'},
-    {'abbreviation': 'AB', 'name': 'App Beta', 'module': 'App-Beta',
+    {'abbreviation': 'AB', 'module': 'App-Beta',
      'project': 'app_beta_webapp', 'war': 'app_beta.war'},
 ]
 
