@@ -6,9 +6,14 @@ import sys
 from shutil import copyfile
 from time import time
 from my_colours import Colour
+from my_module import MyAbstractModule
 
 
-class MyGradle:
+class MyGradle(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'gradle'
+
     def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen, prompt=input):
         self.repos = arguments['git']['repos']
         self.logs = logs
@@ -16,18 +21,17 @@ class MyGradle:
         self.webapps = arguments['gradle']['webapps']
         self.shell = shell
         self.prompt = prompt
-        self.descriptions = dict([
-            ('clean', 'Run ./gradlew clean'),
-            ('format', 'Run ./gradlew format'),
-            ('test', 'Run ./gradlew test, stopping if the tests fail'),
-            ('install', 'Run ./gradlew build (add "quickly" to skip tests)'),
-            ('build', 'Alias for install'),
-            ('assemble', 'Run ./gradlew assemble, skipping tests'),
-            ('publish', 'Run ./gradlew publishToMavenLocal, stopping if it fails'),
-            ('deploy', 'Copy the WAR for the webapp in the current directory into Tomcat webapps'),
-            ('deps', 'Write each webapp\'s dependency tree to build/reports'),
-        ])
-
+        self.descriptions = {
+            'clean': 'Run ./gradlew clean',
+            'format': 'Run ./gradlew format',
+            'test': 'Run ./gradlew test, stopping if the tests fail',
+            'install': 'Run ./gradlew build (add "quickly" to skip tests)',
+            'build': 'Alias for install',
+            'assemble': 'Run ./gradlew assemble, skipping tests',
+            'publish': 'Run ./gradlew publishToMavenLocal, stopping if it fails',
+            'deploy': 'Copy the WAR for the webapp in the current directory into Tomcat webapps',
+            'deps': 'Write each webapp\'s dependency tree to build/reports',
+        }
         print('Running Gradle in %s.' % os.getcwd())
 
     def gradlew(self, directory):
@@ -65,7 +69,7 @@ class MyGradle:
             elif command == "deps":
                 self.deps(commands)
 
-            elif command == "help" or command == "-h" or command == "--help":
+            elif self.is_help(command):
                 self.help(commands)
 
             else:
@@ -176,13 +180,3 @@ class MyGradle:
             # print('  file:///%s/build/reports/dependency-check-report.html\n' % webapp_dir)
 
         self.run(commands)
-
-    def help(self, commands):
-        if len(commands) >= 1 and commands[0] in self.descriptions:
-            command = commands.pop(0)
-            print('    %-10s %s' % (command, self.descriptions[command]))
-            self.run(commands)
-        else:
-            print('Possible commands are:')
-            for command, description in self.descriptions.items():
-                print('    %-10s %s' % (command, description))

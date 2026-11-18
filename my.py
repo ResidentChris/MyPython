@@ -12,10 +12,18 @@ import os
 import sys
 from colorama import init
 from my_colours import Colour
+from my_module import MyModule, find_modules
 
 ROOT = '/path/to/repositories'
 REPOSITORY = os.getcwd()
 LOGS = '%s/logs' % ROOT
+
+
+def command_modules() -> dict[str, type[MyModule]]:
+    """Every command module imported into this file, keyed by its command."""
+    classes = [cls for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
+    return {cls.command(): cls for cls in find_modules(classes)}
+
 
 if __name__ == "__main__":
     # Initialise colorama
@@ -78,15 +86,7 @@ if __name__ == "__main__":
         },
     }
 
-    # TODO: Temporary fix. Only the My* command classes are kept; other
-    # imported classes (e.g. Colour) would otherwise show up in help as bogus
-    # commands like 'lour'. Replace with a more robust approach, e.g. an
-    # explicit registry of command classes instead of discovering every class
-    # imported into this module by name.
-    classes = [
-        member for member in inspect.getmembers(sys.modules[__name__], inspect.isclass)
-        if member[0].startswith('My')
-    ]
+    modules = command_modules()
 
     descriptions: dict[str, str] = {
         'git': 'Pull, push, review, checkout, or commit changes',
@@ -106,17 +106,12 @@ if __name__ == "__main__":
                 print('    %-10s %s' % (next_command, descriptions[next_command]))
             else:
                 print('Possible commands are:')
-                for clazz in classes:
-                    name = clazz[0][2:].lower()
+                for name in modules:
                     print('    %-10s %s' % (name, descriptions.get(name, '')))
         else:
-            matches = [
-                candidate[1] for candidate in classes
-                if candidate[1].__name__.lower() == 'my%s' % command.lower()
-            ]
-            if len(matches) > 0:
-                matches[0].__call__(commands, arguments, REPOSITORY,
-                                    LOGS).run(commands)
+            module = modules.get(command.lower())
+            if module is not None:
+                module(commands, arguments, REPOSITORY, LOGS).run(commands)
             else:
                 print("%sUnknown command: %s%s" % (Colour.RED.value, command, Colour.CLEAR.value))
                 break

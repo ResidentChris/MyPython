@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 
 import subprocess
+from my_module import MyAbstractModule
 from shutil import rmtree
 
 
-class MyNpm:
+class MyNpm(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'npm'
+
     def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen, prompt=input):
         self.repo = arguments['git']['repos']['FrontEnd']
         self.node_modules = '%s/node_modules' % self.repo
@@ -12,6 +17,10 @@ class MyNpm:
         self.environment = arguments['npm']['environment']
         self.shell = shell
         self.prompt = prompt
+        self.descriptions = {
+            'clean': 'Delete node_modules and run npm install',
+            'start': 'Run npm start with the configured environment',
+        }
 
     def run(self, commands):
         if len(commands) >= 1:
@@ -22,6 +31,9 @@ class MyNpm:
 
             elif command == "start":
                 self.start(commands)
+
+            elif self.is_help(command):
+                self.help(commands)
 
             else:
                 commands.insert(0, command)
