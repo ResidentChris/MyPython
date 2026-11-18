@@ -13,6 +13,7 @@ from my_colours import Options
 from my_module import MyAbstractModule
 
 MAIN_BRANCH = 'main'
+ANSI_ESCAPE = re.compile(r'\033\[[0-9;]*m')
 
 
 def default_select(items):
@@ -41,7 +42,9 @@ class MyGit(MyAbstractModule):
         self.descriptions = {
             'pull': 'Pull the latest changes from origin',
             'push': 'Force-push the current branch to origin (--force-with-lease; add "up" to set its upstream)',
-            'review': 'Interactively review, stage, or revert unstaged changes',
+            'review': 'Pick an unstaged change to view, then add or undo it',
+            'add': 'Pick an untracked file to view, then add or undo (delete) it',
+            'stage': 'Alias for add',
             'status': 'Show the current git status',
             'checkout': 'Check out the branch matching a ticket ID (or "main")',
             'work': 'Create a git worktree for a ticket in .worktrees/',
@@ -60,6 +63,9 @@ class MyGit(MyAbstractModule):
 
             elif command == "review":
                 self.diff(commands)
+
+            elif command in ("add", "stage"):
+                self.add_untracked(commands)
 
             elif command == "status":
                 self.status(commands)
@@ -124,17 +130,17 @@ class MyGit(MyAbstractModule):
         diff.wait()
 
         print("\n%s" % file)
-        print("%s? [C]" % Options(['Stage', Colour.GREEN], ['Revert', Colour.RED], ['Diff again', Colour.BLUE], ['Cancel', Colour.CLEAR]), end=" ")
+        print("%s? [C]" % Options(['Add', Colour.GREEN], ['Undo', Colour.RED], ['Refresh', Colour.BLUE], ['Cancel', Colour.CLEAR]), end=" ")
         response = self.prompt()
-        if response.upper() == "D":
+        if response.upper() in ("R", "D"):
             commands.insert(0, strIndex)
             self.diff(commands)
         else:
-            if response.upper() == "S":
-                stage = self.shell(["git", "stage", "--", file])
-                stage.wait()
-                print(Colour.GREEN.value, "Staged", file, Colour.CLEAR.value)
-            elif response.upper() == "R":
+            if response.upper() in ("A", "S"):
+                add = self.shell(["git", "add", "--", file])
+                add.wait()
+                print(Colour.GREEN.value, "Added", file, Colour.CLEAR.value)
+            elif response.upper() == "U":
                 checkout = self.shell(["git", "checkout", "--", file])
                 checkout.wait()
                 print(Colour.RED.value, "Reverted", file, Colour.CLEAR.value)
@@ -142,6 +148,40 @@ class MyGit(MyAbstractModule):
                 print("Cancelled.")
 
             self.status(commands)
+
+    def add_untracked(self, commands):
+        untracked = self.get_untracked_changes()
+        if len(untracked) == 0:
+            print("No untracked files.\n")
+            self.run(commands)
+            return
+        index = self.select([change['pretty'] for change in untracked])
+        if index is None:
+            self.run(commands)
+            return
+        file = untracked[index]['path']
+
+        while True:
+            self.shell("clear")
+            # Shows the whole file as added lines, and copes with binary files.
+            self.shell(["git", "diff", "--no-index", "--", "/dev/null", file]).wait()
+
+            print("\n%s" % file)
+            print("%s? [C]" % Options(['Add', Colour.GREEN], ['Undo', Colour.RED], ['Refresh', Colour.BLUE], ['Cancel', Colour.CLEAR]), end=" ")
+            response = self.prompt().upper()
+            if response not in ("R", "D"):
+                break
+
+        if response in ("A", "S"):
+            self.shell(["git", "add", "--", file]).wait()
+            print(Colour.GREEN.value, "Added", file, Colour.CLEAR.value)
+        elif response == "U":
+            self.shell(["rm", "--", file]).wait()
+            print(Colour.RED.value, "Removed", file, Colour.CLEAR.value)
+        else:
+            print("Cancelled.")
+
+        self.status(commands)
 
     def status(self, commands):
         self.show_status()
@@ -250,6 +290,11 @@ class MyGit(MyAbstractModule):
         changes = self.popen(['git', '-c', 'color.status=always', 'status', '--short'])
         # Last token is the destination path, which handles "R  old -> new" renames
         return [{'path': change.split()[-1], 'pretty': change} for change in changes]
+
+    def get_untracked_changes(self):
+        lines = self.popen(['git', '-c', 'color.status=always', 'status', '--short', '--untracked-files=all'])
+        return [{'path': line.split()[-1], 'pretty': line}
+                for line in lines if ANSI_ESCAPE.sub('', line).startswith('??')]
 
     def get_unstaged_changes(self, all_changes=None):
         all_changes = all_changes or self.get_all_changes()

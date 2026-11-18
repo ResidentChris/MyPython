@@ -31,6 +31,7 @@ class MyGitDispatchTests(unittest.TestCase):
     def test_run_dispatches_known_commands(self):
         for command, method in [
             ('pull', 'pull'), ('push', 'push'), ('review', 'diff'),
+            ('add', 'add_untracked'), ('stage', 'add_untracked'),
             ('status', 'status'), ('checkout', 'checkout'),
             ('commit', 'commit'), ('help', 'help'),
         ]:
@@ -205,6 +206,132 @@ class MyGitDiffTests(unittest.TestCase):
 
         git_diff_calls = [call for call in shell.calls if call[0][0][:2] == ['git', 'diff']]
         self.assertEqual(git_diff_calls[0][0][0], ['git', 'diff', '--', 'foo.py'])
+
+    def test_u_reverts(self):
+        for key in ['u', 'U']:
+            with self.subTest(key=key):
+                shell = FakeShell([
+                    self.NOOP,
+                    self.STATUS, self.DIFF_FILES,
+                    self.NOOP,
+                    self.NOOP,
+                    self.STATUS, self.DIFF_FILES,
+                ])
+                git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                prompt=queued_prompt(key)), shell)
+                with patch('builtins.print'):
+                    git_cmd.diff(['2'])
+                calls = [call[0] for call in shell.calls]
+                self.assertIn((['git', 'checkout', '--', 'foo.py'],), calls)
+
+    def test_r_and_d_refresh_the_diff_without_reverting(self):
+        for key in ['r', 'R', 'd', 'D']:
+            with self.subTest(key=key):
+                shell = FakeShell([
+                    self.NOOP, self.STATUS, self.DIFF_FILES, self.NOOP,
+                    self.NOOP, self.STATUS, self.DIFF_FILES, self.NOOP,
+                    self.STATUS, self.DIFF_FILES,
+                ])
+                git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                prompt=queued_prompt(key, 'c')), shell)
+                with patch('builtins.print'):
+                    git_cmd.diff(['2'])
+                calls = [call[0][0] for call in shell.calls]
+                self.assertEqual(calls.count(['git', 'diff', '--', 'foo.py']), 2)
+                self.assertNotIn(['git', 'checkout', '--', 'foo.py'], calls)
+
+    def test_a_and_s_both_run_git_add(self):
+        for key in ['a', 'A', 's', 'S']:
+            with self.subTest(key=key):
+                shell = FakeShell([
+                    self.NOOP,
+                    self.STATUS, self.DIFF_FILES,
+                    self.NOOP,
+                    self.NOOP,
+                    self.STATUS, self.DIFF_FILES,
+                ])
+                git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                prompt=queued_prompt(key)), shell)
+                with patch('builtins.print'):
+                    git_cmd.diff(['2'])
+                self.assertIn((['git', 'add', '--', 'foo.py'],), [call[0] for call in shell.calls])
+
+
+class MyGitAddUntrackedTests(unittest.TestCase):
+    # Short status with one tracked change and two untracked files, coloured
+    # the way 'git -c color.status=always' prints it.
+    STATUS = FakeProcess(stdout=b' M tracked.py\n\x1b[31m??\x1b[m new.py\n\x1b[31m??\x1b[m docs/notes.md\n')
+    NO_UNTRACKED = FakeProcess(stdout=b' M tracked.py\n')
+    NOOP = FakeProcess()
+
+    def make_git(self, shell, answers=(), select=None):
+        return with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                prompt=queued_prompt(*answers),
+                                select=select or queued_select(1)), shell)
+
+    def commands_run(self, shell):
+        return [call[0][0] for call in shell.calls]
+
+    def test_lists_only_untracked_files(self):
+        shell = FakeShell([self.STATUS])
+        untracked = git_with(shell).get_untracked_changes()
+        self.assertEqual([c['path'] for c in untracked], ['new.py', 'docs/notes.md'])
+
+    def test_add_shows_the_selected_file_then_adds_it(self):
+        for key in ['a', 'A', 's', 'S']:
+            with self.subTest(key=key):
+                shell = FakeShell([self.STATUS, self.NOOP])
+                with patch('builtins.print'):
+                    self.make_git(shell, [key]).add_untracked([])
+                run = self.commands_run(shell)
+                self.assertIn(['git', 'diff', '--no-index', '--', '/dev/null', 'docs/notes.md'], run)
+                self.assertIn(['git', 'add', '--', 'docs/notes.md'], run)
+
+    def test_undo_deletes_the_file(self):
+        shell = FakeShell([self.STATUS, self.NOOP])
+        with patch('builtins.print'):
+            self.make_git(shell, ['u']).add_untracked([])
+        run = self.commands_run(shell)
+        self.assertIn(['rm', '--', 'docs/notes.md'], run)
+        self.assertNotIn(['git', 'add', '--', 'docs/notes.md'], run)
+
+
+    def test_r_and_d_refresh_the_file_without_deleting_it(self):
+        for key in ['r', 'R', 'd', 'D']:
+            with self.subTest(key=key):
+                shell = FakeShell([self.STATUS, self.NOOP])
+                with patch('builtins.print'):
+                    self.make_git(shell, [key, 'c']).add_untracked([])
+                run = self.commands_run(shell)
+                shows = [c for c in run if c[:3] == ['git', 'diff', '--no-index']]
+                self.assertEqual(len(shows), 2)
+                self.assertNotIn(['rm', '--', 'docs/notes.md'], run)
+
+    def test_cancel_changes_nothing(self):
+        shell = FakeShell([self.STATUS, self.NOOP])
+        with patch('builtins.print'):
+            self.make_git(shell, ['c']).add_untracked([])
+        run = self.commands_run(shell)
+        self.assertFalse(any(c[:2] == ['git', 'add'] or c[:1] == ['rm'] for c in run))
+
+    def test_nothing_untracked_does_not_ask(self):
+        def select(items):
+            raise AssertionError('select() should not be called')
+        shell = FakeShell([self.NO_UNTRACKED])
+        git_cmd = self.make_git(shell, select=select)
+        git_cmd.run = MagicMock()
+        with patch('builtins.print'):
+            git_cmd.add_untracked(['status'])
+        git_cmd.run.assert_called_once_with(['status'])
+
+    def test_escape_from_the_list_does_nothing(self):
+        shell = FakeShell([self.STATUS])
+        git_cmd = self.make_git(shell, select=queued_select(None))
+        git_cmd.run = MagicMock()
+        with patch('builtins.print'):
+            git_cmd.add_untracked(['status'])
+        self.assertEqual(len(shell.calls), 1)
+        git_cmd.run.assert_called_once_with(['status'])
 
 
 class MyGitCheckoutInFolderTests(unittest.TestCase):
