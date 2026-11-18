@@ -48,26 +48,17 @@ class MyHarness(MyAbstractModule):
                 commands.insert(0, command)
 
     def web(self, commands):
-        if len(commands) == 0:
+        # 'web' on its own, or followed by anything but build/run, means 'web run'.
+        if len(commands) == 0 or commands[0] not in ("build", "run"):
             commands.insert(0, "run")
-        elif commands[0] != "run" and commands[0] != "build":
-            commands.insert(0, "run")
-        self.web_inner(commands)
-
-
-    def web_inner(self, commands):
-        if len(commands) >= 1:
-            command = commands.pop(0)
-
-            if command == "build":
-                self.web_build(commands)
-            
-            elif command == "run":
-                self.web_run(commands)
-
+        while len(commands) >= 1 and commands[0] in ("build", "run"):
+            if commands.pop(0) == "build":
+                self.web_build()
+            else:
+                self.web_run()
         self.run(commands)
-    
-    def web_run(self, commands):
+
+    def web_run(self):
         test_harness = self.start_web_harness()
         wait(test_harness, "compiled successfully")
 
@@ -79,11 +70,8 @@ class MyHarness(MyAbstractModule):
             print("Web harness interrupted.")
             chromium.kill()
 
-        self.web_inner(commands)
-    
-    def web_build(self, commands):
+    def web_build(self):
         self.shell(["npm", "install"], cwd=self.folder).wait()
-        self.web_inner(commands)
 
     def ios(self, commands):
         print("The iOS harness is not implemented yet.")
