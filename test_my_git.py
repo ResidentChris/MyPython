@@ -307,6 +307,17 @@ class MyGitChooseTests(unittest.TestCase):
         lists = iter([['a'], []])
         self.assertEqual(self.make_git(REFRESH).choose(lambda: next(lists)), (None, []))
 
+    def test_ticket_ids_are_matched_literally(self):
+        branches = '  feature/fix(1)\n  feature/ABCX1\n  remotes/origin/feature/ABC.1\n'
+        for ticket, expected in [('fix(1)', 'feature/fix(1)'), ('ABC.1', 'feature/ABC.1'), ('[1', None)]:
+            with self.subTest(ticket=ticket):
+                git_cmd = self.make_git()
+                if expected is None:
+                    with patch('builtins.print'), self.assertRaises(SystemExit):
+                        git_cmd.resolve_branch(ticket, lambda: branches)
+                else:
+                    self.assertEqual(git_cmd.resolve_branch(ticket, lambda: branches), expected)
+
     def test_branch_matches_are_fetched_again_on_refresh(self):
         branches = iter(['  feature/ABC-1\n  feature/ABC-1-x\n',
                          '  feature/ABC-1\n  feature/ABC-1-x\n  feature/ABC-1-new\n'])

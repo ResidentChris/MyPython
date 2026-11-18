@@ -256,12 +256,14 @@ class MyGit(MyAbstractModule):
         return 0
 
     def resolve_branch(self, ticket, get_branches):
+        literal_ticket = re.escape(ticket)
+
         def matching_branches():
             branches = get_branches()
-            remote_matches = re.findall("(?:remotes/)?origin/([^\\s]*%s[^\\s]*)" % ticket,
+            remote_matches = re.findall("(?:remotes/)?origin/([^\\s]*%s[^\\s]*)" % literal_ticket,
                                  branches,
                                  flags=re.IGNORECASE)
-            local_matches = re.findall("^\\*?\\s*(?!(?:remotes/)?origin/)([^\\s]*%s[^\\s]*)" % ticket,
+            local_matches = re.findall("^\\*?\\s*(?!(?:remotes/)?origin/)([^\\s]*%s[^\\s]*)" % literal_ticket,
                                  branches,
                                  flags=re.IGNORECASE | re.MULTILINE)
             return list(dict.fromkeys(remote_matches + local_matches))
