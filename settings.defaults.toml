@@ -9,27 +9,7 @@
 root = "/path/to/repositories"
 
 [git.repos]
-Backend = "{repository}/Backend"
 FrontEnd = "{repository}/FrontEnd"
-
-# gradle's deploy reads tomcat_home even though the tomcat command itself is
-# deprecated; left blank until it's needed.
-[tomcat]
-tomcat_home = ""
-
-# Webapps built by the Backend repo, in deployment order. 'module' is the
-# folder under Backend, 'project' the Gradle subproject.
-[[gradle.webapps]]
-abbreviation = "A1"
-module = "Webapp-One"
-project = "webapp_one"
-war = "webapp_one.war"
-
-[[gradle.webapps]]
-abbreviation = "A2"
-module = "Webapp-Two"
-project = "webapp_two"
-war = "webapp_two.war"
 
 [harness]
 folder = "{root}/example-sdk/react/library"

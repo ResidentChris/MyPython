@@ -40,7 +40,7 @@ class LoadSettingsTests(unittest.TestCase):
 
     def test_defaults_file_loads(self):
         settings = load_settings('/repo', DEFAULTS_FILE)
-        self.assertEqual(settings['git']['repos']['Backend'], '/repo/Backend')
+        self.assertEqual(settings['git']['repos']['FrontEnd'], '/repo/FrontEnd')
         self.assertEqual(settings['xc']['folder'], '/path/to/repositories/example-sdk')
 
 
