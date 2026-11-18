@@ -2,7 +2,6 @@
 
 import os
 import sys
-from shutil import copyfile
 from time import time
 from my_colours import Colour
 from my_module import MyAbstractModule
@@ -15,13 +14,10 @@ class MyGradle(MyAbstractModule):
 
     @classmethod
     def description(cls):
-        return 'Build, format, deploy, or inspect dependencies via Gradle'
+        return 'Build, test, format, or publish via Gradle'
 
     def __init__(self, commands, arguments, repositories, logs, prompt=input):
-        self.repos = arguments['git']['repos']
         self.logs = logs
-        self.tomcat_webapps = '%s/Webapps' % arguments['tomcat']['tomcat_home']
-        self.webapps = arguments['gradle']['webapps']
         self.prompt = prompt
         self.descriptions = {
             'clean': 'Run ./gradlew clean',
@@ -31,7 +27,6 @@ class MyGradle(MyAbstractModule):
             'install': 'Alias for build',
             'assemble': 'Run ./gradlew assemble, skipping tests',
             'publish': 'Run ./gradlew publishToMavenLocal, stopping if it fails',
-            'deploy': 'Copy the WAR for the webapp in the current directory into Tomcat webapps',
         }
         print('Running Gradle in %s.' % os.getcwd())
 
@@ -63,9 +58,6 @@ class MyGradle(MyAbstractModule):
 
             elif command == "publish":
                 self.publish(commands)
-
-            elif command == "deploy":
-                self.deploy(commands)
 
             elif self.is_help(command):
                 self.help(commands)
@@ -139,21 +131,3 @@ class MyGradle(MyAbstractModule):
                   (Colour.GREEN.value, Colour.CLEAR.value, time() - cwd_start))
         if cwd_status == 0:
             self.run(commands)
-
-    def deploy(self, commands):
-        cwd = os.getcwd()
-        for webapp in self.webapps:
-            if cwd.endswith(webapp['module']):
-                print('Deploying %s only.' % webapp['abbreviation'])
-                self.deploy_webapp(webapp)
-                break
-        self.run(commands)
-
-    def webapp_dir(self, webapp):
-        return '%s/%s/%s' % (self.repos['Backend'], webapp['module'], webapp['project'])
-
-    def deploy_webapp(self, webapp):
-        copyfile(
-            '%s/build/libs/%s' % (self.webapp_dir(webapp), webapp['war']),
-            '%s/%s' % (self.tomcat_webapps, webapp['war'])
-        )
