@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
 import subprocess
+from my_module import MyAbstractModule
 
 DESTINATION = 'platform=iOS Simulator,name=iPhone 17'
 
 
-class MyXc:
+class MyXc(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'xc'
+
     def __init__(self, commands, arguments, repositories, logs):
         self.folder = arguments['xc']['folder']
         self.workspace = arguments['xc']['workspace']
@@ -22,7 +27,7 @@ class MyXc:
             if command == "test":
                 self.test(commands)
 
-            elif command == "help" or command == "-h" or command == "--help":
+            elif self.is_help(command):
                 self.help(commands)
 
             else:
@@ -36,13 +41,3 @@ class MyXc:
             "-destination", DESTINATION,
         ], cwd=self.folder).wait()
         self.run(commands)
-
-    def help(self, commands):
-        if len(commands) >= 1 and commands[0] in self.descriptions:
-            command = commands.pop(0)
-            print('    %-10s %s' % (command, self.descriptions[command]))
-            self.run(commands)
-        else:
-            print('Possible commands are:')
-            for command, description in self.descriptions.items():
-                print('    %-10s %s' % (command, description))

@@ -7,8 +7,13 @@ import time
 from sys import exit
 from my_colours import Colour
 from my_colours import Options
+from my_module import MyAbstractModule
 
-class MyHarness:
+class MyHarness(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'harness'
+
     def __init__(self, commands, arguments, repositories, logs):
         self.repositories = repositories
         self.folder = arguments['harness']['folder']
@@ -32,7 +37,7 @@ class MyHarness:
             elif command == "android":
                 self.android(commands)
 
-            elif command == "help" or command == "-h" or command == "--help":
+            elif self.is_help(command):
                 self.help(commands)
 
             else:
@@ -84,15 +89,6 @@ class MyHarness:
         print("The Android harness is not implemented yet.")
         self.run(commands)
 
-    def help(self, commands):
-        if len(commands) >= 1 and commands[0] in self.descriptions:
-            command = commands.pop(0)
-            print('    %-10s %s' % (command, self.descriptions[command]))
-            self.run(commands)
-        else:
-            print('Possible commands are:')
-            for command, description in self.descriptions.items():
-                print('    %-10s %s' % (command, description))
 
 def wait(process, text):
     ansi_escape = re.compile(r'\033\[[0-9;]*m')

@@ -10,6 +10,7 @@ from prompt_toolkit.keys import Keys
 from sys import exit
 from my_colours import Colour
 from my_colours import Options
+from my_module import MyAbstractModule
 
 MAIN_BRANCH = 'main'
 
@@ -27,22 +28,26 @@ def default_select(items):
     return question.ask()
 
 
-class MyGit:
+class MyGit(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'git'
+
     def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen,
                  prompt=input, select=default_select):
         self.repositories = repositories
         self.shell = shell
         self.prompt = prompt
         self.select = select
-        self.descriptions = dict([
-            ('pull', 'Pull the latest changes from origin'),
-            ('push', 'Force-push the current branch to origin (--force-with-lease)'),
-            ('review', 'Interactively review, stage, or revert unstaged changes'),
-            ('status', 'Show the current git status'),
-            ('checkout', 'Check out the branch matching a ticket ID (or "main")'),
-            ('work', 'Create a git worktree for a ticket in .worktrees/'),
-            ('commit', 'Commit the currently staged ticket file, pre-filled with its ticket ID'),
-        ])
+        self.descriptions = {
+            'pull': 'Pull the latest changes from origin',
+            'push': 'Force-push the current branch to origin (--force-with-lease)',
+            'review': 'Interactively review, stage, or revert unstaged changes',
+            'status': 'Show the current git status',
+            'checkout': 'Check out the branch matching a ticket ID (or "main")',
+            'work': 'Create a git worktree for a ticket in .worktrees/',
+            'commit': 'Commit the currently staged ticket file, pre-filled with its ticket ID',
+        }
 
     def run(self, commands):
         if len(commands) >= 1:
@@ -69,7 +74,7 @@ class MyGit:
             elif command == "commit":
                 self.commit(commands)
 
-            elif command == "help" or command == "-h" or command == "--help":
+            elif self.is_help(command):
                 self.help(commands)
 
             else:
@@ -212,16 +217,6 @@ class MyGit:
             commit = self.shell(['git', 'commit'])
             commit.wait()
         self.run(commands)
-
-    def help(self, commands):
-        if len(commands) >= 1 and commands[0] in self.descriptions:
-            command = commands.pop(0)
-            print('    %-10s %s' % (command, self.descriptions[command]))
-            self.run(commands)
-        else:
-            print('Possible commands are:')
-            for command, description in self.descriptions.items():
-                print('    %-10s %s' % (command, description))
 
 
 def my_status(shell=subprocess.Popen, print_selection_list=True):
