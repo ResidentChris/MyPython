@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import git
 
-from my_git import MyGit
+from my_git import MyGit, REFRESH, default_select
 from testing_support import FakeProcess, FakeShell, queued_prompt, queued_select, with_shell
 
 
@@ -295,6 +295,57 @@ class MyGitDiffTests(unittest.TestCase):
                 with patch('builtins.print'):
                     git_cmd.diff(['2'])
                 self.assertIn((['git', 'add', '--', 'foo.py'],), [call[0] for call in shell.calls])
+
+
+class DefaultSelectTests(unittest.TestCase):
+    """Drives the real arrow-key list with simulated keypresses."""
+
+    def press(self, keys):
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import create_pipe_input
+        from prompt_toolkit.output import DummyOutput
+        with create_pipe_input() as pipe, create_app_session(input=pipe, output=DummyOutput()):
+            pipe.send_text(keys)
+            return default_select(['one', 'two'])
+
+    def test_r_and_d_ask_for_a_refresh(self):
+        for key in ['r', 'R', 'd', 'D']:
+            with self.subTest(key=key):
+                self.assertEqual(self.press(key), REFRESH)
+
+    def test_arrows_and_enter_pick_an_item(self):
+        self.assertEqual(self.press('\x1b[B\r'), 1)
+
+    def test_escape_cancels(self):
+        self.assertIsNone(self.press('\x1b'))
+
+
+class MyGitChooseTests(unittest.TestCase):
+    def make_git(self, *selections):
+        return with_shell(MyGit([], {}, '/fake/repo', '/fake/logs', prompt=queued_prompt(),
+                                select=queued_select(*selections)), FakeShell())
+
+    def test_refresh_fetches_the_items_again(self):
+        lists = iter([['a', 'b'], ['b', 'c', 'd']])
+        index, items = self.make_git(REFRESH, 2).choose(lambda: next(lists))
+        self.assertEqual((index, items), (2, ['b', 'c', 'd']))
+
+    def test_nothing_to_choose_from_does_not_show_the_list(self):
+        def select(items):
+            raise AssertionError('select() should not be called')
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs', prompt=queued_prompt(),
+                                   select=select), FakeShell())
+        self.assertEqual(git_cmd.choose(lambda: []), (None, []))
+
+    def test_refreshing_to_an_empty_list_stops(self):
+        lists = iter([['a'], []])
+        self.assertEqual(self.make_git(REFRESH).choose(lambda: next(lists)), (None, []))
+
+    def test_branch_matches_are_fetched_again_on_refresh(self):
+        branches = iter(['  feature/ABC-1\n  feature/ABC-1-x\n',
+                         '  feature/ABC-1\n  feature/ABC-1-x\n  feature/ABC-1-new\n'])
+        branch = self.make_git(REFRESH, 2).resolve_branch('ABC-1', lambda: next(branches))
+        self.assertEqual(branch, 'feature/ABC-1-new')
 
 
 class MyGitBranchTests(unittest.TestCase):
