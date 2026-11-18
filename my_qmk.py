@@ -8,6 +8,10 @@ class MyQmk(MyAbstractModule):
     def command(cls):
         return 'qmk'
 
+    @classmethod
+    def description(cls):
+        return 'Compile or flash QMK keyboard firmware'
+
     def __init__(self, commands, arguments, repositories, logs):
         self.folder = arguments['qmk']['folder']
         self.keyboard = arguments['qmk']['keyboard']

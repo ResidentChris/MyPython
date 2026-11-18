@@ -13,6 +13,10 @@ class MyGradle(MyAbstractModule):
     def command(cls):
         return 'gradle'
 
+    @classmethod
+    def description(cls):
+        return 'Build, format, deploy, or inspect dependencies via Gradle'
+
     def __init__(self, commands, arguments, repositories, logs, prompt=input):
         self.repos = arguments['git']['repos']
         self.logs = logs

@@ -9,6 +9,10 @@ class MyNpm(MyAbstractModule):
     def command(cls):
         return 'npm'
 
+    @classmethod
+    def description(cls):
+        return 'Clean or start the npm project'
+
     def __init__(self, commands, arguments, repositories, logs, prompt=input):
         self.repo = arguments['git']['repos']['FrontEnd']
         self.node_modules = '%s/node_modules' % self.repo

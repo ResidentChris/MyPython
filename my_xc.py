@@ -10,6 +10,10 @@ class MyXc(MyAbstractModule):
     def command(cls):
         return 'xc'
 
+    @classmethod
+    def description(cls):
+        return 'Run xcodebuild commands (test)'
+
     def __init__(self, commands, arguments, repositories, logs):
         self.folder = arguments['xc']['folder']
         self.workspace = arguments['xc']['workspace']

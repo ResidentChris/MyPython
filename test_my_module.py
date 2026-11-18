@@ -17,6 +17,10 @@ class ExampleModule(MyAbstractModule):
     def command(cls):
         return 'example'
 
+    @classmethod
+    def description(cls):
+        return 'An example module'
+
     def __init__(self):
         self.descriptions = {'first': 'The first sub-command', 'second': 'The second sub-command'}
         self.ran = []
@@ -36,6 +40,10 @@ class StandaloneModule:
     def command(cls):
         return 'standalone'
 
+    @classmethod
+    def description(cls):
+        return 'A module that only implements the protocol'
+
     def run(self, commands):
         if commands and commands[0] == 'help':
             self.help(commands[1:])
@@ -45,6 +53,19 @@ class StandaloneModule:
 
 
 class NoCommand(MyAbstractModule):
+    @classmethod
+    def description(cls):
+        return 'Has no command'
+
+    def run(self, commands):
+        pass
+
+
+class NoDescription(MyAbstractModule):
+    @classmethod
+    def command(cls):
+        return 'nodescription'
+
     def run(self, commands):
         pass
 
@@ -66,11 +87,19 @@ class MyAbstractModuleTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             NoCommand()
 
+    def test_missing_description_makes_the_class_abstract(self):
+        self.assertTrue(inspect.isabstract(NoDescription))
+        self.assertEqual(find_modules([NoDescription]), [])
+
     def test_missing_run_makes_the_class_abstract(self):
         class NoRun(MyAbstractModule):
             @classmethod
             def command(cls):
                 return 'norun'
+
+            @classmethod
+            def description(cls):
+                return 'Has no run'
 
         self.assertTrue(inspect.isabstract(NoRun))
         with self.assertRaises(TypeError):
@@ -196,6 +225,13 @@ class CommandModuleComplianceTests(unittest.TestCase):
                 self.assertTrue(command)
                 self.assertEqual(command, command.lower())
         self.assertEqual(len(commands), len(set(commands)), 'Duplicate commands: %s' % commands)
+
+    def test_descriptions_are_non_empty(self):
+        for command, cls in my.command_modules().items():
+            with self.subTest(command=command):
+                description = cls.description()
+                self.assertIsInstance(description, str)
+                self.assertTrue(description)
 
     def test_modules_do_not_call_subprocess_directly(self):
         direct_call = re.compile(r'^[^#]*\bsubprocess\.(Popen|run|call|check_call|check_output)\(', re.M)
