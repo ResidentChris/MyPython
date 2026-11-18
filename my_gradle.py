@@ -108,13 +108,13 @@ class MyGradle(MyAbstractModule):
 
         build_commands = [self.gradlew(os.getcwd()), 'assemble' if skip_tests else 'build']
 
-        print("Building %s..." % os.getcwd().split('\\')[-1])
+        print("Building %s..." % os.path.basename(os.getcwd()))
 
         cwd_start = time()
         cwd = self.shell(build_commands,
                          cwd=os.getcwd())
         cwd_status = cwd.wait()
-        if cwd_status > 0:
+        if cwd_status != 0:
             print("Build %sfailed%s." % (Colour.RED.value, Colour.CLEAR.value))
             print('Continue anyway? [y/N]')
             response = self.prompt()
