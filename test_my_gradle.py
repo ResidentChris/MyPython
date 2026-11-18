@@ -181,6 +181,23 @@ class MyGradleInstallTests(GradlewPresentTestCase):
             self.make_gradle(FakeShell()).build([])
         self.assertEqual(os.listdir(self.tmp), [])
 
+    def test_build_killed_by_a_signal_is_reported_as_a_failure(self):
+        shell = FakeShell([FakeProcess(returncode=-9)])
+        gradle = self.make_gradle(shell, prompt=queued_prompt('n'))
+        with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'), \
+                patch('builtins.print') as printed, self.assertRaises(SystemExit):
+            gradle.build(['clean'])
+        output = ' '.join(str(call.args[0]) for call in printed.call_args_list if call.args)
+        self.assertIn('failed', output)
+        self.assertNotIn('succeeded', output)
+        self.assertEqual(len(shell.calls), 1)
+
+    def test_build_names_the_project_folder(self):
+        with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'), \
+                patch('builtins.print') as printed:
+            self.make_gradle(FakeShell()).build([])
+        printed.assert_any_call('Building App-Alpha...')
+
     def test_build_failure_then_abort_exits(self):
         shell = FakeShell([FakeProcess(returncode=1)])
         gradle = self.make_gradle(shell, prompt=queued_prompt('n'))
