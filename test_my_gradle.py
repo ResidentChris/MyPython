@@ -176,6 +176,11 @@ class MyGradleInstallTests(GradlewPresentTestCase):
             ((['./gradlew', 'clean'],), {'cwd': '/cwd/App-Alpha'}),
         ])
 
+    def test_build_does_not_write_a_log(self):
+        with patch('my_gradle.os.getcwd', return_value='/cwd/App-Alpha'), patch('builtins.print'):
+            self.make_gradle(FakeShell()).build([])
+        self.assertEqual(os.listdir(self.tmp), [])
+
     def test_build_failure_then_abort_exits(self):
         shell = FakeShell([FakeProcess(returncode=1)])
         gradle = self.make_gradle(shell, prompt=queued_prompt('n'))

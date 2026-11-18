@@ -5,7 +5,7 @@
 #   {root}        the `root` setting below
 #   {repository}  the directory `my` is run from
 
-# Folder containing your repositories. Logs are written to {root}/logs.
+# Folder containing your repositories.
 root = "/path/to/repositories"
 
 [harness]
