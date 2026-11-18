@@ -4,6 +4,8 @@ Not a test module itself - imported by the test_my_*.py files so each one
 doesn't have to redefine the same fakes.
 """
 
+import io
+
 
 class FakeProcess:
     """Stands in for a subprocess.Popen instance."""
@@ -11,6 +13,8 @@ class FakeProcess:
     def __init__(self, returncode=0, stdout=b''):
         self.returncode = returncode
         self._stdout = stdout
+        # For code that reads the output line by line, as text.
+        self.stdout = io.StringIO(stdout.decode('UTF-8'))
 
     def wait(self):
         return self.returncode
