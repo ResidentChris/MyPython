@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+import git
+
 from my_git import MyGit
 from testing_support import FakeProcess, FakeShell, queued_prompt, queued_select, with_shell
 
@@ -33,7 +35,7 @@ class MyGitDispatchTests(unittest.TestCase):
             ('pull', 'pull'), ('push', 'push'), ('review', 'diff'),
             ('add', 'add_untracked'), ('stage', 'add_untracked'),
             ('status', 'status'), ('checkout', 'checkout'),
-            ('commit', 'commit'), ('help', 'help'),
+            ('commit', 'commit'), ('help', 'help'), ('branch', 'branch'),
         ]:
             git_cmd = self.make_git()
             setattr(git_cmd, method, MagicMock())
@@ -255,6 +257,51 @@ class MyGitDiffTests(unittest.TestCase):
                 with patch('builtins.print'):
                     git_cmd.diff(['2'])
                 self.assertIn((['git', 'add', '--', 'foo.py'],), [call[0] for call in shell.calls])
+
+
+class MyGitBranchTests(unittest.TestCase):
+    def make_git(self, shell, answers=()):
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                   prompt=queued_prompt(*answers)), shell)
+        git_cmd.run = MagicMock()
+        return git_cmd
+
+    def test_creates_the_branch_and_switches_to_it(self):
+        git_cmd = self.make_git(FakeShell())
+        with patch('my_git.git.Repo') as fake_repo_cls:
+            git_cmd.branch(['feature/new', 'status'])
+        fake_repo_cls.assert_called_once_with('/fake/repo')
+        fake_repo_cls.return_value.git.switch.assert_called_once_with('-c', 'feature/new')
+        git_cmd.run.assert_called_once_with(['status'])
+
+    def test_without_a_name_is_not_dispatched(self):
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs', prompt=queued_prompt()), FakeShell())
+        git_cmd.branch = MagicMock()
+        git_cmd.run(['branch'])
+        git_cmd.branch.assert_not_called()
+
+    def test_list_and_dash_dash_list_list_branches_without_creating_one(self):
+        for name in ['list', '--list']:
+            with self.subTest(name=name):
+                shell = FakeShell()
+                git_cmd = self.make_git(shell)
+                with patch('builtins.print'):
+                    git_cmd.branch([name, 'status'])
+                self.assertEqual(shell.calls, [((['git', 'branch', '--list'],), {'cwd': '/fake/repo'})])
+                git_cmd.run.assert_called_once_with(['status'])
+
+    def test_failure_reports_git_error_and_stops_further_commands(self):
+        git_cmd = self.make_git(FakeShell())
+        error = git.GitCommandError(['git', 'switch'], 128,
+                                    stderr="fatal: a branch named 'existing' already exists\nhint: more")
+        with patch('my_git.git.Repo') as fake_repo_cls, patch('builtins.print') as printed:
+            fake_repo_cls.return_value.git.switch.side_effect = error
+            git_cmd.branch(['existing', 'push'])
+        message = printed.call_args[0][0]
+        self.assertIn("Branch not created: a branch named 'existing' already exists", message)
+        self.assertNotIn('stderr:', message)
+        self.assertNotIn('hint', message)
+        git_cmd.run.assert_not_called()
 
 
 class MyGitAddUntrackedTests(unittest.TestCase):

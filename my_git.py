@@ -29,6 +29,15 @@ def default_select(items):
     return question.ask()
 
 
+def git_error(error):
+    """The first line of git's message from a GitCommandError, without GitPython's wrapping."""
+    message = error.stderr.strip()
+    if message.startswith("stderr: '") and message.endswith("'"):
+        message = message[len("stderr: '"):-1]
+    first_line = message.splitlines()[0] if message else str(error)
+    return first_line.removeprefix('fatal: ')
+
+
 class MyGit(MyAbstractModule):
     @classmethod
     def command(cls):
@@ -48,6 +57,7 @@ class MyGit(MyAbstractModule):
             'status': 'Show the current git status',
             'checkout': 'Check out the branch matching a ticket ID (or "main")',
             'work': 'Create a git worktree for a ticket in .worktrees/',
+            'branch': 'Create a branch and switch to it ("list" or "--list" lists branches)',
             'commit': 'Commit the currently staged ticket file, pre-filled with its ticket ID',
         }
 
@@ -75,6 +85,9 @@ class MyGit(MyAbstractModule):
 
             elif len(commands) >= 1 and command == "work":
                 self.work(commands)
+
+            elif len(commands) >= 1 and command == "branch":
+                self.branch(commands)
 
             elif command == "commit":
                 self.commit(commands)
@@ -239,6 +252,22 @@ class MyGit(MyAbstractModule):
         path = os.path.join(worktrees_dir, ticket)
 
         repo.git.worktree('add', path, branch)
+        self.run(commands)
+
+    def branch(self, commands):
+        name = commands.pop(0)
+        if name in ('list', '--list'):
+            # Run git itself rather than listing repo.heads, so the output keeps
+            # git's own formatting and colours (e.g. the current branch in green).
+            self.shell(["git", "branch", "--list"], cwd=self.repositories).wait()
+            self.run(commands)
+            return
+
+        try:
+            git.Repo(self.repositories).git.switch('-c', name)
+        except git.GitCommandError as e:
+            print("%sBranch not created: %s%s" % (Colour.RED.value, git_error(e), Colour.CLEAR.value))
+            return
         self.run(commands)
 
     def commit(self, commands):
