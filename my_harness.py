@@ -14,6 +14,10 @@ class MyHarness(MyAbstractModule):
     def command(cls):
         return 'harness'
 
+    @classmethod
+    def description(cls):
+        return 'Run the web, iOS, or Android test harness'
+
     def __init__(self, commands, arguments, repositories, logs):
         self.repositories = repositories
         self.folder = arguments['harness']['folder']

@@ -32,26 +32,17 @@ if __name__ == "__main__":
 
     modules = command_modules()
 
-    descriptions: dict[str, str] = {
-        'git': 'Pull, push, review, checkout, or commit changes',
-        'gradle': 'Build, format, deploy, or inspect dependencies via Gradle',
-        'harness': 'Run the web, iOS, or Android test harness',
-        'npm': 'Clean or start the npm project',
-        'qmk': 'Compile or flash QMK keyboard firmware',
-        'xc': 'Run xcodebuild commands (test)',
-    }
-
     while len(commands) >= 1:
         command = commands.pop(0)
         if command == '-h' or command == '--help' or command == 'help':
             print('My (Python)')
-            if len(commands) >= 1 and commands[0] in descriptions:
+            if len(commands) >= 1 and commands[0] in modules:
                 next_command = commands.pop(0)
-                print('    %-10s %s' % (next_command, descriptions[next_command]))
+                print('    %-10s %s' % (next_command, modules[next_command].description()))
             else:
                 print('Possible commands are:')
-                for name in modules:
-                    print('    %-10s %s' % (name, descriptions.get(name, '')))
+                for name, module in modules.items():
+                    print('    %-10s %s' % (name, module.description()))
         else:
             module = modules.get(command.lower())
             if module is not None:

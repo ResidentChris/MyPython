@@ -43,6 +43,10 @@ class MyGit(MyAbstractModule):
     def command(cls):
         return 'git'
 
+    @classmethod
+    def description(cls):
+        return 'Pull, push, review, checkout, or commit changes'
+
     def __init__(self, commands, arguments, repositories, logs,
                  prompt=input, select=default_select):
         self.repositories = repositories

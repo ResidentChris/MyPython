@@ -34,6 +34,11 @@ class MyModule(Protocol):
         """The name used on the command line, e.g. 'gradle' for `my gradle ...`."""
         ...
 
+    @classmethod
+    def description(cls) -> str:
+        """A one-line description of the module, shown by `my help`."""
+        ...
+
     def run(self, commands: list[str]) -> None:
         """Consume the leading commands this module handles.
 
@@ -55,7 +60,7 @@ class MyModule(Protocol):
 class MyAbstractModule(MyModule, ABC):
     """Optional base class for command modules.
 
-    Subclasses must implement `command` and `run`, and set
+    Subclasses must implement `command`, `description` and `run`, and set
     `self.descriptions` (sub-command name -> help text) in their
     constructor, which the shared `help` uses. They run external commands
     through `shell`.
@@ -70,6 +75,11 @@ class MyAbstractModule(MyModule, ABC):
     @classmethod
     @abstractmethod
     def command(cls) -> str:
+        ...
+
+    @classmethod
+    @abstractmethod
+    def description(cls) -> str:
         ...
 
     @abstractmethod
