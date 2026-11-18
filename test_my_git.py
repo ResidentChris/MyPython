@@ -103,7 +103,45 @@ class MyGitPullTests(unittest.TestCase):
                             prompt=queued_prompt()), FakeShell())
             git_cmd.pull([])
             fake_repo_cls.assert_called_once_with('/fake/repo')
-            fake_repo.remotes.origin.pull.assert_called_once()
+            fake_repo.remote.assert_called_once_with('origin')
+            fake_repo.remote.return_value.pull.assert_called_once()
+
+    def test_pull_without_an_origin_remote_explains_and_exits(self):
+        with patch('my_git.git.Repo') as fake_repo_cls, patch('builtins.print') as printed:
+            fake_repo_cls.return_value.remote.side_effect = ValueError("Remote named 'origin' didn't exist")
+            git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                            prompt=queued_prompt()), FakeShell())
+            with self.assertRaises(SystemExit) as raised:
+                git_cmd.pull([])
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("No remote called 'origin'", printed.call_args[0][0])
+
+
+class MyGitFailureTests(unittest.TestCase):
+    def failing_run(self, error):
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                                   prompt=queued_prompt()), FakeShell())
+        git_cmd.pull = MagicMock(side_effect=error)
+        with patch('builtins.print') as printed, self.assertRaises(SystemExit) as raised:
+            git_cmd.run(['pull', 'status'])
+        self.assertEqual(raised.exception.code, 1)
+        return printed.call_args[0][0]
+
+    def test_failed_git_command_shows_the_command_and_gits_message(self):
+        error = git.GitCommandError(['git', 'pull', '-v', '--', 'origin'], 1,
+                                    stderr="error: Your local changes would be overwritten by merge:\nhint: commit first")
+        message = self.failing_run(error)
+        self.assertIn('git pull -v -- origin failed: Your local changes would be overwritten by merge:', message)
+        self.assertNotIn('hint', message)
+        self.assertNotIn('Traceback', message)
+
+    def test_not_a_repository(self):
+        message = self.failing_run(git.InvalidGitRepositoryError('/not/a/repo'))
+        self.assertIn('Not a git repository: /not/a/repo', message)
+
+    def test_missing_folder(self):
+        message = self.failing_run(git.NoSuchPathError('/missing'))
+        self.assertIn('No such folder: /missing', message)
 
 
 class MyGitCommitTests(unittest.TestCase):

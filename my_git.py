@@ -30,12 +30,25 @@ def default_select(items):
 
 
 def git_error(error):
-    """The first line of git's message from a GitCommandError, without GitPython's wrapping."""
+    """git's message from a GitCommandError, without GitPython's wrapping or git's hints."""
     message = error.stderr.strip()
     if message.startswith("stderr: '") and message.endswith("'"):
         message = message[len("stderr: '"):-1]
-    first_line = message.splitlines()[0] if message else str(error)
-    return first_line.removeprefix('fatal: ')
+    lines = [line.removeprefix('fatal: ').removeprefix('error: ')
+             for line in message.splitlines() if line.strip() and not line.startswith('hint:')]
+    return '\n'.join(lines) if lines else 'exit code %s' % error.status
+
+
+def describe_failure(error):
+    """A human-readable message for a GitPython error."""
+    if isinstance(error, git.GitCommandError):
+        command = ' '.join(str(part) for part in error.command) if isinstance(error.command, list) else error.command
+        return '%s failed: %s' % (command, git_error(error))
+    if isinstance(error, git.NoSuchPathError):
+        return 'No such folder: %s' % error
+    if isinstance(error, git.InvalidGitRepositoryError):
+        return 'Not a git repository: %s' % error
+    return 'Git failed: %s' % error
 
 
 class MyGit(MyAbstractModule):
@@ -66,6 +79,13 @@ class MyGit(MyAbstractModule):
         }
 
     def run(self, commands):
+        try:
+            self.dispatch(commands)
+        except git.GitError as e:
+            print("%s%s%s" % (Colour.RED.value, describe_failure(e), Colour.CLEAR.value))
+            exit(1)
+
+    def dispatch(self, commands):
         if len(commands) >= 1:
             command = commands.pop(0)
 
@@ -103,7 +123,12 @@ class MyGit(MyAbstractModule):
                 commands.insert(0, command)
 
     def pull(self, commands):
-        git.Repo(self.repositories).remotes.origin.pull()
+        try:
+            origin = git.Repo(self.repositories).remote('origin')
+        except ValueError:
+            print("%sNo remote called 'origin' to pull from.%s" % (Colour.RED.value, Colour.CLEAR.value))
+            exit(1)
+        origin.pull()
         self.run(commands)
 
     def push(self, commands):
