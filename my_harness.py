@@ -64,10 +64,10 @@ class MyHarness(MyAbstractModule):
         self.run(commands)
     
     def web_run(self, commands):
-        test_harness = start_web_harness(self.folder)
+        test_harness = self.start_web_harness()
         wait(test_harness, "compiled successfully")
 
-        chromium = start_chromium(self.url)
+        chromium = self.start_chromium()
 
         try:
             test_harness.wait()
@@ -78,7 +78,7 @@ class MyHarness(MyAbstractModule):
         self.web_inner(commands)
     
     def web_build(self, commands):
-        subprocess.Popen(["npm", "install"], cwd=self.folder).wait()
+        self.shell(["npm", "install"], cwd=self.folder).wait()
         self.web_inner(commands)
 
     def ios(self, commands):
@@ -89,6 +89,37 @@ class MyHarness(MyAbstractModule):
         print("The Android harness is not implemented yet.")
         self.run(commands)
 
+    def start_web_harness(self):
+        print(" ")
+        print("###########################")
+        print("# Starting web harness... #")
+        print("###########################")
+        print(" ")
+        return self.shell(
+            ["npm", "run", "harness:web"],
+            cwd=self.folder,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env={**os.environ, "FORCE_COLOR": "1"},
+        )
+
+    def start_chromium(self):
+        print(" ")
+        print("########################")
+        print("# Starting Chromium... #")
+        print("########################")
+        print(" ")
+        return self.shell([
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "--args",
+            "--user-data-dir=/tmp/chrome_dev_test",
+            "--disable-web-security",
+            "--ignore-certificate-errors",
+            "--use-mock-keychain",
+            self.url
+        ])
+
 
 def wait(process, text):
     ansi_escape = re.compile(r'\033\[[0-9;]*m')
@@ -97,34 +128,3 @@ def wait(process, text):
             print(line, end="")
             if "compiled successfully" in ansi_escape.sub("", line).lower():
                 break
-
-def start_web_harness(folder):
-    print(" ")
-    print("###########################")
-    print("# Starting web harness... #")
-    print("###########################")
-    print(" ")
-    return subprocess.Popen(
-        ["npm", "run", "harness:web"],
-        cwd=folder,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        env={**os.environ, "FORCE_COLOR": "1"},
-    )
-
-def start_chromium(url):
-    print(" ")
-    print("########################")
-    print("# Starting Chromium... #")
-    print("########################")
-    print(" ")
-    return subprocess.Popen([
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        "--args",
-        "--user-data-dir=/tmp/chrome_dev_test",
-        "--disable-web-security",
-        "--ignore-certificate-errors",
-        "--use-mock-keychain",
-        url
-    ])

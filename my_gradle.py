@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import subprocess
 import sys
 from shutil import copyfile
 from time import time
@@ -14,12 +13,11 @@ class MyGradle(MyAbstractModule):
     def command(cls):
         return 'gradle'
 
-    def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen, prompt=input):
+    def __init__(self, commands, arguments, repositories, logs, prompt=input):
         self.repos = arguments['git']['repos']
         self.logs = logs
         self.tomcat_webapps = '%s/Webapps' % arguments['tomcat']['tomcat_home']
         self.webapps = arguments['gradle']['webapps']
-        self.shell = shell
         self.prompt = prompt
         self.descriptions = {
             'clean': 'Run ./gradlew clean',

@@ -66,3 +66,9 @@ def queued_select(*indices):
         return remaining.pop(0)
 
     return select
+
+
+def with_shell(module, shell):
+    """Make `module` run its commands through `shell` (e.g. a FakeShell), and return it."""
+    module.shell_implementation = shell
+    return module

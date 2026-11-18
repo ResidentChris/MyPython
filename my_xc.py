@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import subprocess
 from my_module import MyAbstractModule
 
 DESTINATION = 'platform=iOS Simulator,name=iPhone 17'
@@ -34,7 +33,7 @@ class MyXc(MyAbstractModule):
                 commands.insert(0, command)
 
     def test(self, commands):
-        subprocess.Popen([
+        self.shell([
             "xcodebuild", "test",
             "-workspace", self.workspace,
             "-scheme", self.scheme,

@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from my_git import MyGit, my_status, get_all_changes, get_unstaged_changes, popen
-from testing_support import FakeProcess, FakeShell, queued_prompt, queued_select
+from my_git import MyGit
+from testing_support import FakeProcess, FakeShell, queued_prompt, queued_select, with_shell
 
 
 GIT_ENV = {
@@ -25,8 +25,8 @@ def run_git(*args, cwd):
 
 class MyGitDispatchTests(unittest.TestCase):
     def make_git(self):
-        return MyGit([], {}, '/fake/repo', '/fake/logs',
-                     shell=FakeShell(), prompt=queued_prompt())
+        return with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                     prompt=queued_prompt()), FakeShell())
 
     def test_run_dispatches_known_commands(self):
         for command, method in [
@@ -56,8 +56,8 @@ class MyGitDispatchTests(unittest.TestCase):
 class MyGitPushTests(unittest.TestCase):
     def test_push_force_with_lease_from_repositories_dir(self):
         shell = FakeShell()
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt()), shell)
         git_cmd.push([])
         self.assertEqual(shell.calls, [
             ((["git", "push", "--force-with-lease"],), {'cwd': '/fake/repo'})
@@ -65,8 +65,8 @@ class MyGitPushTests(unittest.TestCase):
 
     def test_push_up_sets_upstream_to_the_current_branch_on_origin(self):
         shell = FakeShell()
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt()), shell)
         commands = ['up']
         git_cmd.push(commands)
         self.assertEqual(commands, [])
@@ -76,16 +76,16 @@ class MyGitPushTests(unittest.TestCase):
         ])
 
     def test_push_up_continues_with_remaining_commands(self):
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
         git_cmd.run = MagicMock()
         git_cmd.push(['up', 'status'])
         git_cmd.run.assert_called_once_with(['status'])
 
     def test_push_without_up_leaves_other_commands_alone(self):
         shell = FakeShell()
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt()), shell)
         git_cmd.run = MagicMock()
         git_cmd.push(['status'])
         self.assertEqual(shell.calls[0][0][0], ["git", "push", "--force-with-lease"])
@@ -96,8 +96,8 @@ class MyGitPullTests(unittest.TestCase):
     def test_pull_delegates_to_gitpython_origin(self):
         with patch('my_git.git.Repo') as fake_repo_cls:
             fake_repo = fake_repo_cls.return_value
-            git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs',
-                            shell=FakeShell(), prompt=queued_prompt())
+            git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                            prompt=queued_prompt()), FakeShell())
             git_cmd.pull([])
             fake_repo_cls.assert_called_once_with('/fake/repo')
             fake_repo.remotes.origin.pull.assert_called_once()
@@ -116,8 +116,8 @@ class MyGitCommitTests(unittest.TestCase):
             FakeProcess(stdout=b'M  ABC-123_some-ticket.md\n'),
             FakeProcess(),
         ])
-        git_cmd = MyGit([], {}, self.tmp, '/fake/logs', shell=shell,
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.tmp, '/fake/logs',
+                        prompt=queued_prompt()), shell)
         git_cmd.commit([])
 
         commit_msg_path = os.path.join(self.tmp, 'Tickets', '.git', 'COMMIT_EDITMSG')
@@ -128,8 +128,8 @@ class MyGitCommitTests(unittest.TestCase):
 
     def test_commit_does_nothing_for_multiple_edits(self):
         shell = FakeShell([FakeProcess(stdout=b'M  a.md\nM  b.md\n')])
-        git_cmd = MyGit([], {}, self.tmp, '/fake/logs', shell=shell,
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.tmp, '/fake/logs',
+                        prompt=queued_prompt()), shell)
         git_cmd.commit([])
 
         commit_msg_path = os.path.join(self.tmp, 'Tickets', '.git', 'COMMIT_EDITMSG')
@@ -160,8 +160,8 @@ class MyGitDiffTests(unittest.TestCase):
             self.NOOP,
             self.STATUS, self.DIFF_FILES,
         ])
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt('C'), select=queued_select(1))
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt('C'), select=queued_select(1)), shell)
         git_cmd.diff([])
 
         git_diff_calls = [call for call in shell.calls if call[0][0][:2] == ['git', 'diff']]
@@ -178,8 +178,8 @@ class MyGitDiffTests(unittest.TestCase):
             self.STATUS, self.DIFF_FILES,
             self.STATUS, self.DIFF_FILES,
         ])
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt(), select=queued_select(None))
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt(), select=queued_select(None)), shell)
 
         git_cmd.diff([])
 
@@ -199,8 +199,8 @@ class MyGitDiffTests(unittest.TestCase):
         def select(items):
             raise AssertionError('select() should not be called with an explicit index argument')
 
-        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
-                        prompt=queued_prompt('C'), select=select)
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt('C'), select=select), shell)
         git_cmd.diff(['2'])
 
         git_diff_calls = [call for call in shell.calls if call[0][0][:2] == ['git', 'diff']]
@@ -240,15 +240,15 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
         return result.stdout.decode('UTF-8').strip()
 
     def test_checks_out_the_single_matching_branch(self):
-        git_cmd = MyGit([], {}, self.work, '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
         status = git_cmd.checkout_in_folder('ABC-123-extra', self.work)
         self.assertEqual(status, 0)
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
 
     def test_prompts_and_checks_out_the_chosen_branch_on_multiple_matches(self):
-        git_cmd = MyGit([], {}, self.work, '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt('2'))
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt('2')), FakeShell())
         git_cmd.checkout_in_folder('ABC-123', self.work)
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
 
@@ -256,8 +256,8 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
         run_git('checkout', '-q', '-b', 'feature/ABC-123', 'origin/feature/ABC-123', cwd=self.work)
         self.assertEqual(self.current_branch(), 'feature/ABC-123')
 
-        git_cmd = MyGit([], {}, self.work, '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
         git_cmd.checkout_in_folder('main', self.work)
         self.assertEqual(self.current_branch(), 'main')
 
@@ -265,8 +265,8 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
         run_git('checkout', '-q', '-b', 'feature/XYZ-999', 'origin/main', cwd=self.work)
         run_git('checkout', '-q', 'main', cwd=self.work)
 
-        git_cmd = MyGit([], {}, self.work, '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
         status = git_cmd.checkout_in_folder('XYZ-999', self.work)
         self.assertEqual(status, 0)
         self.assertEqual(self.current_branch(), 'feature/XYZ-999')
@@ -295,8 +295,8 @@ class MyGitWorkTests(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_work_creates_worktree_under_dot_worktrees(self):
-        git_cmd = MyGit([], {}, self.work_dir, '/fake/logs', shell=FakeShell(),
-                        prompt=queued_prompt())
+        git_cmd = with_shell(MyGit([], {}, self.work_dir, '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
         git_cmd.work(['ABC-123'])
 
         worktree_path = os.path.join(self.work_dir, '.worktrees', 'ABC-123')
@@ -307,21 +307,25 @@ class MyGitWorkTests(unittest.TestCase):
         self.assertEqual(result.stdout.decode('UTF-8').strip(), 'feature/ABC-123')
 
 
+def git_with(shell):
+    return with_shell(MyGit([], {}, '/fake/repo', '/fake/logs', prompt=queued_prompt()), shell)
+
+
 class MyStatusHelperTests(unittest.TestCase):
     def test_popen_splits_and_drops_blank_lines(self):
         shell = FakeShell([FakeProcess(stdout=b'foo\n\nbar\n')])
-        self.assertEqual(popen(['git', 'status'], shell), ['foo', 'bar'])
+        self.assertEqual(git_with(shell).popen(['git', 'status']), ['foo', 'bar'])
 
     def test_popen_strips_each_line_consistently(self):
         # Regression test: popen() used to strip() the whole blob before
         # splitting on newlines, so only the first line's leading space
         # was removed and every later line kept theirs.
         shell = FakeShell([FakeProcess(stdout=b' foo\n bar\n')])
-        self.assertEqual(popen(['git', 'status'], shell), ['foo', 'bar'])
+        self.assertEqual(git_with(shell).popen(['git', 'status']), ['foo', 'bar'])
 
     def test_get_all_changes_parses_short_status_output(self):
         shell = FakeShell([FakeProcess(stdout=b' M foo.py\nA  bar.py\n')])
-        changes = get_all_changes(shell)
+        changes = git_with(shell).get_all_changes()
         self.assertEqual([c['path'] for c in changes], ['foo.py', 'bar.py'])
 
     def test_get_all_changes_pretty_formatting_is_consistent_across_lines(self):
@@ -329,7 +333,7 @@ class MyStatusHelperTests(unittest.TestCase):
         # change was missing its leading space relative to later ones.
         shell = FakeShell([FakeProcess(
             stdout=b' M My/my_git.py\n M My/my_gradle.py\n M My/my_harness.py\n')])
-        changes = get_all_changes(shell)
+        changes = git_with(shell).get_all_changes()
         self.assertEqual(
             [c['pretty'] for c in changes],
             ['M My/my_git.py', 'M My/my_gradle.py', 'M My/my_harness.py'])
@@ -339,18 +343,18 @@ class MyStatusHelperTests(unittest.TestCase):
             FakeProcess(stdout=b' M foo.py\nA  bar.py\n'),
             FakeProcess(stdout=b':100644 100644 aaa bbb M\tfoo.py\n'),
         ])
-        unstaged = get_unstaged_changes(shell=shell)
+        unstaged = git_with(shell).get_unstaged_changes()
         self.assertEqual([c['path'] for c in unstaged], ['foo.py'])
 
     def test_get_all_changes_uses_destination_path_for_renames(self):
         shell = FakeShell([FakeProcess(stdout=b'RM old/Foo.java -> new/FooImpl.java\n M bar.py\n')])
-        changes = get_all_changes(shell)
+        changes = git_with(shell).get_all_changes()
         self.assertEqual([c['path'] for c in changes], ['new/FooImpl.java', 'bar.py'])
 
     def test_get_all_changes_uses_destination_path_for_coloured_renames(self):
         shell = FakeShell([FakeProcess(
             stdout=b'\x1b[32mR\x1b[m\x1b[31mM\x1b[m old/Foo.java -> new/FooImpl.java\n')])
-        changes = get_all_changes(shell)
+        changes = git_with(shell).get_all_changes()
         self.assertEqual([c['path'] for c in changes], ['new/FooImpl.java'])
 
     def test_get_unstaged_changes_matches_renamed_file_with_unstaged_edits(self):
@@ -361,7 +365,7 @@ class MyStatusHelperTests(unittest.TestCase):
             FakeProcess(stdout=b':100644 100644 aaa bbb M\tnew/FooImpl.java\n'
                                b':100644 100644 ccc ddd M\tbar.py\n'),
         ])
-        unstaged = get_unstaged_changes(shell=shell)
+        unstaged = git_with(shell).get_unstaged_changes()
         self.assertEqual([c['path'] for c in unstaged], ['new/FooImpl.java', 'bar.py'])
         self.assertEqual(unstaged[0]['pretty'], 'RM old/Foo.java -> new/FooImpl.java')
 
@@ -374,15 +378,15 @@ class MyStatusHelperTests(unittest.TestCase):
                                b':100644 100644 ccc ddd M\tmystery.py\n'),
         ])
         with patch('builtins.print'):
-            unstaged = get_unstaged_changes(shell=shell)
+            unstaged = git_with(shell).get_unstaged_changes()
         self.assertEqual(unstaged, [
             {'path': 'foo.py', 'pretty': 'foo.py'},
             {'path': 'mystery.py', 'pretty': 'mystery.py'},
         ])
 
-    def test_my_status_reports_false_when_no_changes(self):
+    def test_show_status_reports_false_when_no_changes(self):
         shell = FakeShell([FakeProcess(stdout=b'')])
-        self.assertFalse(my_status(shell))
+        self.assertFalse(git_with(shell).show_status())
 
 
 if __name__ == '__main__':

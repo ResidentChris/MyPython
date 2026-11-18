@@ -1,10 +1,14 @@
 import inspect
+import re
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
 import my
 from my_colours import Colour
 from my_module import MyAbstractModule, MyModule, find_modules
+from testing_support import FakeShell
 
 
 class ExampleModule(MyAbstractModule):
@@ -75,6 +79,40 @@ class MyAbstractModuleTests(unittest.TestCase):
         module = ExampleModule()
         self.assertEqual(module.command(), 'example')
         self.assertIsInstance(module, MyAbstractModule)
+
+
+class MyAbstractModuleShellTests(unittest.TestCase):
+    def test_shell_uses_popen_by_default(self):
+        self.assertIs(ExampleModule().shell_implementation, subprocess.Popen)
+
+    def test_shell_passes_arguments_to_the_implementation(self):
+        module = ExampleModule()
+        module.shell_implementation = FakeShell()
+        module.shell(['echo', 'hi'], cwd='/somewhere')
+        self.assertEqual(module.shell_implementation.calls, [((['echo', 'hi'],), {'cwd': '/somewhere'})])
+
+    def test_shell_prints_the_command_in_blue_before_running_it(self):
+        events = []
+        module = ExampleModule()
+        module.shell_implementation = lambda *args, **kwargs: events.append('run')
+        with patch('builtins.print', side_effect=lambda text: events.append(text)):
+            module.shell(['git', 'commit', '-m', 'two words'], cwd='/somewhere')
+        self.assertEqual(events, [
+            "%s$ git commit -m 'two words'%s" % (Colour.BLUE.value, Colour.CLEAR.value),
+            'run',
+        ])
+
+    def test_shell_prints_string_commands_as_they_are(self):
+        module = ExampleModule()
+        module.shell_implementation = FakeShell()
+        with patch('builtins.print') as printed:
+            module.shell('clear')
+        printed.assert_called_once_with('%s$ clear%s' % (Colour.BLUE.value, Colour.CLEAR.value))
+
+    def test_replacing_the_implementation_on_one_instance_leaves_others_alone(self):
+        module = ExampleModule()
+        module.shell_implementation = FakeShell()
+        self.assertIs(ExampleModule().shell_implementation, subprocess.Popen)
 
 
 class FindModulesTests(unittest.TestCase):
@@ -165,6 +203,14 @@ class CommandModuleComplianceTests(unittest.TestCase):
                 self.assertTrue(command)
                 self.assertEqual(command, command.lower())
         self.assertEqual(len(commands), len(set(commands)), 'Duplicate commands: %s' % commands)
+
+    def test_modules_do_not_call_subprocess_directly(self):
+        direct_call = re.compile(r'^[^#]*\bsubprocess\.(Popen|run|call|check_call|check_output)\(', re.M)
+        for command, cls in my.command_modules().items():
+            with self.subTest(command=command):
+                source = inspect.getsource(sys.modules[cls.__module__])
+                self.assertIsNone(direct_call.search(source),
+                                  '%s runs a command without self.shell' % cls.__module__)
 
     def test_help_is_consumed_and_prints_something(self):
         for command, cls in my.command_modules().items():

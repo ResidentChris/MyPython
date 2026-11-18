@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import subprocess
 from my_module import MyAbstractModule
 
 
@@ -37,13 +36,13 @@ class MyQmk(MyAbstractModule):
                 commands.insert(0, command)
 
     def compile(self, commands):
-        subprocess.Popen(
+        self.shell(
             ["qmk", "compile", "-kb", self.keyboard, "-km", self.keymap],
             cwd=self.folder).wait()
         self.run(commands)
 
     def flash(self, commands):
-        subprocess.Popen(
+        self.shell(
             ["qmk", "flash", "-kb", self.keyboard, "-km", self.keymap],
             cwd=self.folder).wait()
         self.run(commands)
