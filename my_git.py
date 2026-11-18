@@ -67,7 +67,7 @@ class MyGit(MyAbstractModule):
 
     @classmethod
     def description(cls):
-        return 'Pull, push, review, checkout, or commit changes'
+        return 'Pull, push, review, add, checkout, or create branches'
 
     def __init__(self, commands, arguments, repositories, logs,
                  prompt=input, select=default_select):
@@ -84,7 +84,6 @@ class MyGit(MyAbstractModule):
             'checkout': 'Check out the branch matching a ticket ID (or "main")',
             'work': 'Create a git worktree for a ticket in .worktrees/',
             'branch': 'Create a branch and switch to it ("list" or "--list" lists branches)',
-            'commit': 'Commit the currently staged ticket file, pre-filled with its ticket ID',
         }
 
     def run(self, commands):
@@ -121,9 +120,6 @@ class MyGit(MyAbstractModule):
 
             elif len(commands) >= 1 and command == "branch":
                 self.branch(commands)
-
-            elif command == "commit":
-                self.commit(commands)
 
             elif self.is_help(command):
                 self.help(commands)
@@ -329,26 +325,6 @@ class MyGit(MyAbstractModule):
         except git.GitCommandError as e:
             print("%sBranch not created: %s%s" % (Colour.RED.value, git_error(e), Colour.CLEAR.value))
             return
-        self.run(commands)
-
-    def commit(self, commands):
-        status = self.shell(["git", "status", "--porcelain"],
-                            stdout=subprocess.PIPE)
-        edits = status.communicate()[0].decode('UTF-8').strip().split('\n')
-        if len(edits) == 1:
-            filename = edits[0].split(' ')[-1]
-            ticket_id = filename.split('_')[0]
-            file = open('%s/Tickets/.git/COMMIT_EDITMSG' % self.repositories,
-                        'w+')
-            for line in [
-                    '%s ' % ticket_id,
-                    '',
-                    '# You know the drill.',
-            ]:
-                file.write('%s\n' % line)
-            file.close()
-            commit = self.shell(['git', 'commit'])
-            commit.wait()
         self.run(commands)
 
     def show_status(self, print_selection_list=True):
