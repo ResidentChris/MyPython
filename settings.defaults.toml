@@ -8,19 +8,9 @@
 # Folder containing your repositories. Logs are written to {root}/logs.
 root = "/path/to/repositories"
 
-[git.repos]
-FrontEnd = "{repository}/FrontEnd"
-
 [harness]
 folder = "{root}/example-sdk/react/library"
 url = "https://localhost.example.com:8080"
-
-[npm]
-wsl_user = "your_wsl_user"
-
-[npm.environment]
-APP_ONE_URL = "http://localhost:9999"
-APP_TWO_URL = "http://localhost:9999"
 
 [qmk]
 folder = "/path/to/qmk_firmware"
