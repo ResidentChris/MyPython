@@ -41,7 +41,7 @@ class MyGit(MyAbstractModule):
         self.select = select
         self.descriptions = {
             'pull': 'Pull the latest changes from origin',
-            'push': 'Force-push the current branch to origin (--force-with-lease)',
+            'push': 'Force-push the current branch to origin (--force-with-lease; add "up" to set its upstream)',
             'review': 'Interactively review, stage, or revert unstaged changes',
             'status': 'Show the current git status',
             'checkout': 'Check out the branch matching a ticket ID (or "main")',
@@ -85,7 +85,11 @@ class MyGit(MyAbstractModule):
         self.run(commands)
 
     def push(self, commands):
-        self.shell(["git", "push", "--force-with-lease"], cwd=self.repositories).wait()
+        command = ["git", "push", "--force-with-lease"]
+        if len(commands) > 0 and commands[0] == 'up':
+            commands.pop(0)
+            command += ["--set-upstream", "origin", "HEAD"]
+        self.shell(command, cwd=self.repositories).wait()
         self.run(commands)
 
     def diff(self, commands):

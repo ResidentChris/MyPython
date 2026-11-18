@@ -63,6 +63,34 @@ class MyGitPushTests(unittest.TestCase):
             ((["git", "push", "--force-with-lease"],), {'cwd': '/fake/repo'})
         ])
 
+    def test_push_up_sets_upstream_to_the_current_branch_on_origin(self):
+        shell = FakeShell()
+        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
+                        prompt=queued_prompt())
+        commands = ['up']
+        git_cmd.push(commands)
+        self.assertEqual(commands, [])
+        self.assertEqual(shell.calls, [
+            ((["git", "push", "--force-with-lease", "--set-upstream", "origin", "HEAD"],),
+             {'cwd': '/fake/repo'})
+        ])
+
+    def test_push_up_continues_with_remaining_commands(self):
+        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=FakeShell(),
+                        prompt=queued_prompt())
+        git_cmd.run = MagicMock()
+        git_cmd.push(['up', 'status'])
+        git_cmd.run.assert_called_once_with(['status'])
+
+    def test_push_without_up_leaves_other_commands_alone(self):
+        shell = FakeShell()
+        git_cmd = MyGit([], {}, '/fake/repo', '/fake/logs', shell=shell,
+                        prompt=queued_prompt())
+        git_cmd.run = MagicMock()
+        git_cmd.push(['status'])
+        self.assertEqual(shell.calls[0][0][0], ["git", "push", "--force-with-lease"])
+        git_cmd.run.assert_called_once_with(['status'])
+
 
 class MyGitPullTests(unittest.TestCase):
     def test_pull_delegates_to_gitpython_origin(self):
