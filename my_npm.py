@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 from my_module import MyAbstractModule
 from shutil import rmtree
 
@@ -14,14 +15,10 @@ class MyNpm(MyAbstractModule):
         return 'Clean or start the npm project'
 
     def __init__(self, commands, arguments, repositories, logs, prompt=input):
-        self.repo = arguments['git']['repos']['FrontEnd']
-        self.node_modules = '%s/node_modules' % self.repo
-        self.wsl_user = arguments['npm']['wsl_user']
-        self.environment = arguments['npm']['environment']
         self.prompt = prompt
         self.descriptions = {
             'clean': 'Delete node_modules and run npm install',
-            'start': 'Run npm start with the configured environment',
+            'start': 'Run npm start',
         }
 
     def run(self, commands):
@@ -41,22 +38,14 @@ class MyNpm(MyAbstractModule):
                 commands.insert(0, command)
 
     def clean(self, commands):
-        print('Deleting node_modules...', end=' ')
-        rmtree(self.node_modules)
-        print('done.')
-        npm_install = self.shell(
-            ['wsl', '--user', self.wsl_user, '--cd', self.repo, 'npm', 'install'])
-        npm_install.wait()
+        node_modules = os.path.join(os.getcwd(), 'node_modules')
+        if os.path.isdir(node_modules):
+            print('Deleting node_modules...', end=' ')
+            rmtree(node_modules)
+            print('done.')
+        self.shell(['npm', 'install'], cwd=os.getcwd()).wait()
         self.run(commands)
 
     def start(self, commands):
-        exports = []
-        for name, value in self.environment.items():
-            exports += ['export', '%s=%s;' % (name, value)]
-        proc = self.shell(
-            ['wsl', '--user', self.wsl_user, '--cd', self.repo]
-            + exports
-            + ['~/.nvm/versions/node/v16.13.0/bin/npm', 'run', 'start']
-        )
-        proc.wait()
+        self.shell(['npm', 'run', 'start'], cwd=os.getcwd()).wait()
         self.run(commands)
