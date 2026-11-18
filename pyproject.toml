@@ -7,7 +7,7 @@ name = "mypython"
 version = "0.1.0"
 description = "Personal command-line helpers for git, gradle, npm, qmk and xcodebuild"
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "colorama",
     "gitpython",
@@ -23,6 +23,7 @@ py-modules = [
     "my_gradle",
     "my_harness",
     "my_module",
+    "my_settings",
     "my_npm",
     "my_qmk",
     "my_xc",

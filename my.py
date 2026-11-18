@@ -13,10 +13,9 @@ import sys
 from colorama import init
 from my_colours import Colour
 from my_module import MyModule, find_modules
+from my_settings import MissingSettings, load_settings
 
-ROOT = '/path/to/repositories'
 REPOSITORY = os.getcwd()
-LOGS = '%s/logs' % ROOT
 
 
 def command_modules() -> dict[str, type[MyModule]]:
@@ -30,61 +29,6 @@ if __name__ == "__main__":
     init()
 
     commands = sys.argv[1:]
-
-    arguments = {
-        'git': {
-            'repos': {
-                'Backend': '%s/Backend' % REPOSITORY,
-                'FrontEnd': '%s/FrontEnd' % REPOSITORY,
-            },
-        },
-        # gradle's deploy() reads tomcat_webapps from this even though the
-        # tomcat command itself is deprecated; left blank until it's needed.
-        'tomcat': {
-            'tomcat_home': '',
-        },
-        'gradle': {
-            # Webapps built by the Backend repo, in deployment order. 'module'
-            # is the folder under Backend, 'project' the Gradle subproject.
-            'webapps': [
-                {
-                    'abbreviation': 'A1',
-                    'name': 'Webapp One',
-                    'module': 'Webapp-One',
-                    'project': 'webapp_one',
-                    'war': 'webapp_one.war',
-                },
-                {
-                    'abbreviation': 'A2',
-                    'name': 'Webapp Two',
-                    'module': 'Webapp-Two',
-                    'project': 'webapp_two',
-                    'war': 'webapp_two.war',
-                },
-            ],
-        },
-        'harness': {
-            'folder': '%s/example-sdk/react/library' % ROOT,
-            'url': 'https://localhost.example.com:8080',
-        },
-        'npm': {
-            'wsl_user': 'your_wsl_user',
-            'environment': {
-                'APP_ONE_URL': 'http://localhost:9999',
-                'APP_TWO_URL': 'http://localhost:9999',
-            },
-        },
-        'qmk': {
-            'folder': '/path/to/qmk_firmware',
-            'keyboard': 'keebio/iris/rev5',
-            'keymap': 'ColemakForMac'
-        },
-        'xc': {
-            'folder': '%s/example-sdk' % ROOT,
-            'workspace': 'ios/library/test-harness/ExampleSdk.xcworkspace',
-            'scheme': 'ExampleSdk-Unit-Tests',
-        },
-    }
 
     modules = command_modules()
 
@@ -111,7 +55,13 @@ if __name__ == "__main__":
         else:
             module = modules.get(command.lower())
             if module is not None:
-                module(commands, arguments, REPOSITORY, LOGS).run(commands)
+                try:
+                    arguments = load_settings(REPOSITORY)
+                except MissingSettings as e:
+                    print('%s%s%s' % (Colour.RED.value, e, Colour.CLEAR.value))
+                    sys.exit(1)
+                logs = '%s/logs' % arguments['root']
+                module(commands, arguments, REPOSITORY, logs).run(commands)
             else:
                 print("%sUnknown command: %s%s" % (Colour.RED.value, command, Colour.CLEAR.value))
                 break
