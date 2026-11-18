@@ -35,7 +35,7 @@ class MyGitDispatchTests(unittest.TestCase):
             ('pull', 'pull'), ('push', 'push'), ('review', 'diff'),
             ('add', 'add_untracked'), ('stage', 'add_untracked'),
             ('status', 'status'), ('checkout', 'checkout'),
-            ('commit', 'commit'), ('help', 'help'), ('branch', 'branch'),
+            ('help', 'help'), ('branch', 'branch'),
         ]:
             git_cmd = self.make_git()
             setattr(git_cmd, method, MagicMock())
@@ -142,40 +142,6 @@ class MyGitFailureTests(unittest.TestCase):
     def test_missing_folder(self):
         message = self.failing_run(git.NoSuchPathError('/missing'))
         self.assertIn('No such folder: /missing', message)
-
-
-class MyGitCommitTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp()
-        os.makedirs(os.path.join(self.tmp, 'Tickets', '.git'))
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def test_commit_writes_ticket_id_and_commits_single_edit(self):
-        shell = FakeShell([
-            FakeProcess(stdout=b'M  ABC-123_some-ticket.md\n'),
-            FakeProcess(),
-        ])
-        git_cmd = with_shell(MyGit([], {}, self.tmp, '/fake/logs',
-                        prompt=queued_prompt()), shell)
-        git_cmd.commit([])
-
-        commit_msg_path = os.path.join(self.tmp, 'Tickets', '.git', 'COMMIT_EDITMSG')
-        with open(commit_msg_path) as f:
-            contents = f.read()
-        self.assertTrue(contents.startswith('ABC-123 \n'))
-        self.assertEqual(shell.calls[-1], ((['git', 'commit'],), {}))
-
-    def test_commit_does_nothing_for_multiple_edits(self):
-        shell = FakeShell([FakeProcess(stdout=b'M  a.md\nM  b.md\n')])
-        git_cmd = with_shell(MyGit([], {}, self.tmp, '/fake/logs',
-                        prompt=queued_prompt()), shell)
-        git_cmd.commit([])
-
-        commit_msg_path = os.path.join(self.tmp, 'Tickets', '.git', 'COMMIT_EDITMSG')
-        self.assertFalse(os.path.exists(commit_msg_path))
-        self.assertEqual(len(shell.calls), 1)  # only the status check, no commit
 
 
 class MyGitDiffTests(unittest.TestCase):
