@@ -265,10 +265,11 @@ class MyGit(MyAbstractModule):
         elif len(matches) == 1:
             return matches[0]
         else:
-            for i in range(len(matches)):
-                print("[%d] %s" % (i + 1, matches[i]))
-            response = self.prompt("? ")
-            return matches[int(response) - 1]
+            index = self.select(matches)
+            if index is None:
+                print("Cancelled.")
+                exit(1)
+            return matches[index]
 
     def work(self, commands):
         ticket = commands.pop(0)

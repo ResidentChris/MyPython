@@ -458,11 +458,25 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
 
-    def test_prompts_and_checks_out_the_chosen_branch_on_multiple_matches(self):
+    def test_selects_and_checks_out_the_chosen_branch_on_multiple_matches(self):
+        offered = []
+
+        def select(items):
+            offered.append(items)
+            return 1
+
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
-                        prompt=queued_prompt('2')), FakeShell())
+                        prompt=queued_prompt(), select=select), FakeShell())
         git_cmd.checkout_in_folder('ABC-123', self.work)
+        self.assertEqual(offered, [['feature/ABC-123', 'feature/ABC-123-extra']])
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
+
+    def test_escape_from_the_branch_list_checks_out_nothing(self):
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt(), select=queued_select(None)), FakeShell())
+        with patch('builtins.print'), self.assertRaises(SystemExit):
+            git_cmd.checkout_in_folder('ABC-123', self.work)
+        self.assertEqual(self.current_branch(), 'main')
 
     def test_checks_out_main_directly_regardless_of_match_content(self):
         run_git('checkout', '-q', '-b', 'feature/ABC-123', 'origin/feature/ABC-123', cwd=self.work)
