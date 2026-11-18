@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from my_gradle import MyGradle
-from testing_support import FakeProcess, FakeShell, queued_prompt
+from testing_support import FakeProcess, FakeShell, queued_prompt, with_shell
 
 
 WEBAPPS = [
@@ -38,8 +38,8 @@ class MyGradleGradlewTests(unittest.TestCase):
         shell = FakeShell()
         with tempfile.TemporaryDirectory() as empty:
             with patch('my_gradle.os.getcwd', return_value=empty):
-                gradle = MyGradle([], make_arguments('/backend', '/tomcat'),
-                                  '/repo', '/logs', shell=shell, prompt=queued_prompt())
+                gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'),
+                                  '/repo', '/logs', prompt=queued_prompt()), shell)
                 with self.assertRaises(SystemExit) as raised:
                     gradle.clean([])
         self.assertNotEqual(raised.exception.code, 0)
@@ -50,8 +50,8 @@ class MyGradleGradlewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as project:
             open(os.path.join(project, 'gradlew'), 'w').close()
             with patch('my_gradle.os.getcwd', return_value=project):
-                gradle = MyGradle([], make_arguments('/backend', '/tomcat'),
-                                  '/repo', '/logs', shell=shell, prompt=queued_prompt())
+                gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'),
+                                  '/repo', '/logs', prompt=queued_prompt()), shell)
                 gradle.clean([])
         self.assertEqual(shell.calls, [((['./gradlew', 'clean'],), {'cwd': project})])
 
@@ -60,32 +60,32 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
     def test_clean_runs_in_cwd(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'),
-                              '/repo', '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'),
+                              '/repo', '/logs', prompt=queued_prompt()), shell)
             gradle.clean([])
         self.assertEqual(shell.calls, [((["./gradlew", "clean"],), {'cwd': '/cwd/project'})])
 
     def test_format_runs_in_cwd(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', prompt=queued_prompt()), shell)
             gradle.format([])
         self.assertEqual(shell.calls, [((['./gradlew', 'format'],), {'cwd': '/cwd/project'})])
 
     def test_test_runs_in_cwd(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', prompt=queued_prompt()), shell)
             gradle.test([])
         self.assertEqual(shell.calls, [((['./gradlew', 'test'],), {'cwd': '/cwd/project'})])
 
     def test_test_then_build_chains_commands(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              tempfile.gettempdir(), shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              tempfile.gettempdir(), prompt=queued_prompt()), shell)
             gradle.run(['test', 'build'])
         self.assertEqual([call[0][0] for call in shell.calls],
                          [['./gradlew', 'test'], ['./gradlew', 'build']])
@@ -93,8 +93,8 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
     def test_test_failure_stops_and_exits_nonzero(self):
         shell = FakeShell([FakeProcess(returncode=1)])
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', prompt=queued_prompt()), shell)
             with self.assertRaises(SystemExit) as raised:
                 gradle.run(['test', 'build'])
         self.assertNotEqual(raised.exception.code, 0)
@@ -103,8 +103,8 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
     def test_publish_runs_publish_to_maven_local_in_cwd(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', prompt=queued_prompt()), shell)
             gradle.run(['publish', 'clean'])
         self.assertEqual(shell.calls, [
             ((['./gradlew', 'publishToMavenLocal'],), {'cwd': '/cwd/project'}),
@@ -114,8 +114,8 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
     def test_publish_failure_stops_and_exits_nonzero(self):
         shell = FakeShell([FakeProcess(returncode=1)])
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
-            gradle = MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                              '/logs', shell=shell, prompt=queued_prompt())
+            gradle = with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                              '/logs', prompt=queued_prompt()), shell)
             with self.assertRaises(SystemExit) as raised:
                 gradle.run(['publish', 'clean'])
         self.assertNotEqual(raised.exception.code, 0)
@@ -124,8 +124,8 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
 
 class MyGradleHelpTests(GradlewPresentTestCase):
     def make_gradle(self, shell):
-        return MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
-                        '/logs', shell=shell, prompt=queued_prompt())
+        return with_shell(MyGradle([], make_arguments('/backend', '/tomcat'), '/repo',
+                        '/logs', prompt=queued_prompt()), shell)
 
     def test_help_flags_are_consumed(self):
         for flag in ['help', '-h', '--help']:
@@ -155,9 +155,9 @@ class MyGradleInstallTests(GradlewPresentTestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def make_gradle(self, shell, commands=None, prompt=None):
-        return MyGradle(commands or [], make_arguments('/backend', '/tomcat'),
-                        '/repo', self.tmp, shell=shell,
-                        prompt=prompt or queued_prompt())
+        return with_shell(MyGradle(commands or [], make_arguments('/backend', '/tomcat'),
+                        '/repo', self.tmp, 
+                        prompt=prompt or queued_prompt()), shell)
 
     def test_install_success_builds_in_cwd(self):
         shell = FakeShell([FakeProcess(returncode=0)])
@@ -216,8 +216,8 @@ class MyGradleDeployTests(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def make_gradle(self, commands=None):
-        return MyGradle(commands or [], make_arguments(self.backend, self.tomcat_home),
-                        '/repo', '/logs', shell=FakeShell(), prompt=queued_prompt())
+        return with_shell(MyGradle(commands or [], make_arguments(self.backend, self.tomcat_home),
+                        '/repo', '/logs', prompt=queued_prompt()), FakeShell())
 
     def test_deploy_only_webapp_matching_cwd(self):
         with patch('my_gradle.os.getcwd', return_value='/some/path/App-Alpha'):

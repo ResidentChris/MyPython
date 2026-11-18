@@ -33,10 +33,9 @@ class MyGit(MyAbstractModule):
     def command(cls):
         return 'git'
 
-    def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen,
+    def __init__(self, commands, arguments, repositories, logs,
                  prompt=input, select=default_select):
         self.repositories = repositories
-        self.shell = shell
         self.prompt = prompt
         self.select = select
         self.descriptions = {
@@ -94,9 +93,9 @@ class MyGit(MyAbstractModule):
 
     def diff(self, commands):
         if len(commands) == 0:
-            if not my_status(self.shell, print_selection_list=False):
+            if not self.show_status(print_selection_list=False):
                 exit()
-            changes = get_unstaged_changes(shell=self.shell)
+            changes = self.get_unstaged_changes()
             index = self.select([change['pretty'] for change in changes])
             if index is None:
                 self.run(commands)
@@ -109,7 +108,7 @@ class MyGit(MyAbstractModule):
 
         try:
             index = int(strIndex) - 1
-            changes = get_unstaged_changes(shell=self.shell)
+            changes = self.get_unstaged_changes()
             try:
                 file = changes[index]['path']
             except IndexError:
@@ -145,7 +144,7 @@ class MyGit(MyAbstractModule):
             self.status(commands)
 
     def status(self, commands):
-        my_status(self.shell)
+        self.show_status()
         self.run(commands)
 
     def checkout(self, commands):
@@ -222,52 +221,48 @@ class MyGit(MyAbstractModule):
             commit.wait()
         self.run(commands)
 
-
-def my_status(shell=subprocess.Popen, print_selection_list=True):
-    changes = get_all_changes(shell)
-    print()
-
-    number_of_changes = len(changes)
-    if number_of_changes == 0:
-        print("No changes.\n")
-        return False
-
-    for change in changes:
-        print(change['pretty'])
-    print('%d changes.\n' % number_of_changes)
-
-    unstaged_changes = get_unstaged_changes(changes, shell)
-    if len(unstaged_changes) == 0:
-        print("No unstaged changes.\n")
-        return False
-
-    if print_selection_list:
-        for i, change in enumerate(unstaged_changes):
-            print("[%d] %s" % (i + 1, change['pretty']))
+    def show_status(self, print_selection_list=True):
+        changes = self.get_all_changes()
         print()
 
-    return True
+        number_of_changes = len(changes)
+        if number_of_changes == 0:
+            print("No changes.\n")
+            return False
 
+        for change in changes:
+            print(change['pretty'])
+        print('%d changes.\n' % number_of_changes)
 
-def get_all_changes(shell=subprocess.Popen):
-    changes = popen(['git', '-c', 'color.status=always', 'status', '--short'], shell)
-    # Last token is the destination path, which handles "R  old -> new" renames
-    return [{'path': change.split()[-1], 'pretty': change} for change in changes]
+        unstaged_changes = self.get_unstaged_changes(changes)
+        if len(unstaged_changes) == 0:
+            print("No unstaged changes.\n")
+            return False
 
+        if print_selection_list:
+            for i, change in enumerate(unstaged_changes):
+                print("[%d] %s" % (i + 1, change['pretty']))
+            print()
 
-def get_unstaged_changes(all_changes = None, shell=subprocess.Popen):
-    all_changes = all_changes or get_all_changes(shell)
-    unstaged_changes = list(dict.fromkeys(
-        change.strip().split()[5] for change in popen(['git', 'diff-files'], shell)))
+        return True
 
-    unstaged_changes_pretty = [change for change in all_changes if change['path'] in unstaged_changes]
-    if len(unstaged_changes_pretty) == len(unstaged_changes):
-        return unstaged_changes_pretty
+    def get_all_changes(self):
+        changes = self.popen(['git', '-c', 'color.status=always', 'status', '--short'])
+        # Last token is the destination path, which handles "R  old -> new" renames
+        return [{'path': change.split()[-1], 'pretty': change} for change in changes]
 
-    print("%sWarning%s: couldn't find pretty entries for all unstaged changes, displaying path only.\n" % (Colour.YELLOW.value, Colour.CLEAR.value))
-    return [{'path': path, 'pretty': path} for path in unstaged_changes]
+    def get_unstaged_changes(self, all_changes=None):
+        all_changes = all_changes or self.get_all_changes()
+        unstaged_changes = list(dict.fromkeys(
+            change.strip().split()[5] for change in self.popen(['git', 'diff-files'])))
 
+        unstaged_changes_pretty = [change for change in all_changes if change['path'] in unstaged_changes]
+        if len(unstaged_changes_pretty) == len(unstaged_changes):
+            return unstaged_changes_pretty
 
-def popen(command, shell=subprocess.Popen):
-    output = shell(command, stdout=subprocess.PIPE).communicate()[0].decode('UTF-8')
-    return [line.strip() for line in output.split('\n') if len(line.strip()) > 0]
+        print("%sWarning%s: couldn't find pretty entries for all unstaged changes, displaying path only.\n" % (Colour.YELLOW.value, Colour.CLEAR.value))
+        return [{'path': path, 'pretty': path} for path in unstaged_changes]
+
+    def popen(self, command):
+        output = self.shell(command, stdout=subprocess.PIPE).communicate()[0].decode('UTF-8')
+        return [line.strip() for line in output.split('\n') if len(line.strip()) > 0]

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 from my_npm import MyNpm
-from testing_support import FakeShell, queued_prompt
+from testing_support import FakeShell, queued_prompt, with_shell
 
 
 def make_arguments(frontend):
@@ -28,8 +28,8 @@ class MyNpmCleanTests(unittest.TestCase):
 
     def test_clean_deletes_node_modules_and_reinstalls(self):
         shell = FakeShell()
-        npm = MyNpm([], make_arguments(self.tmp), '/repo', '/logs',
-                   shell=shell, prompt=queued_prompt())
+        npm = with_shell(MyNpm([], make_arguments(self.tmp), '/repo', '/logs',
+                   prompt=queued_prompt()), shell)
         npm.clean([])
         self.assertFalse(os.path.exists(self.node_modules))
         self.assertEqual(shell.calls, [
@@ -40,8 +40,8 @@ class MyNpmCleanTests(unittest.TestCase):
 class MyNpmStartTests(unittest.TestCase):
     def test_start_runs_via_wsl_with_environment(self):
         shell = FakeShell()
-        npm = MyNpm([], make_arguments('/frontend'), '/repo', '/logs',
-                   shell=shell, prompt=queued_prompt())
+        npm = with_shell(MyNpm([], make_arguments('/frontend'), '/repo', '/logs',
+                   prompt=queued_prompt()), shell)
         npm.start([])
         args, kwargs = shell.calls[0]
         self.assertEqual(kwargs, {})

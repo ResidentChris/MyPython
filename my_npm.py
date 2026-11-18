@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import subprocess
 from my_module import MyAbstractModule
 from shutil import rmtree
 
@@ -10,12 +9,11 @@ class MyNpm(MyAbstractModule):
     def command(cls):
         return 'npm'
 
-    def __init__(self, commands, arguments, repositories, logs, shell=subprocess.Popen, prompt=input):
+    def __init__(self, commands, arguments, repositories, logs, prompt=input):
         self.repo = arguments['git']['repos']['FrontEnd']
         self.node_modules = '%s/node_modules' % self.repo
         self.wsl_user = arguments['npm']['wsl_user']
         self.environment = arguments['npm']['environment']
-        self.shell = shell
         self.prompt = prompt
         self.descriptions = {
             'clean': 'Delete node_modules and run npm install',

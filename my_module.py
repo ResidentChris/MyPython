@@ -9,8 +9,12 @@ Conformance is checked by the tests in test_my_module.py, not at import.
 """
 
 import inspect
+import shlex
+import subprocess
 from abc import ABC, abstractmethod
 from typing import Iterable, Protocol, runtime_checkable
+
+from my_colours import Colour
 
 HELP_COMMANDS = ('help', '-h', '--help')
 
@@ -53,10 +57,15 @@ class MyAbstractModule(MyModule, ABC):
 
     Subclasses must implement `command` and `run`, and set
     `self.descriptions` (sub-command name -> help text) in their
-    constructor, which the shared `help` uses.
+    constructor, which the shared `help` uses. They run external commands
+    through `shell`.
     """
 
     descriptions: dict[str, str]
+
+    # What `shell` uses to run commands. Replace it (e.g. on an instance in
+    # tests) to change how every command in the module is run.
+    shell_implementation = subprocess.Popen
 
     @classmethod
     @abstractmethod
@@ -66,6 +75,17 @@ class MyAbstractModule(MyModule, ABC):
     @abstractmethod
     def run(self, commands: list[str]) -> None:
         ...
+
+    def shell(self, *args, **kwargs) -> subprocess.Popen:
+        """Run an external command. Takes the same arguments as subprocess.Popen.
+
+        The command is printed before it runs.
+        """
+        command = args[0] if args else kwargs.get('args')
+        if command is not None:
+            text = command if isinstance(command, str) else shlex.join(str(part) for part in command)
+            print('%s$ %s%s' % (Colour.BLUE.value, text, Colour.CLEAR.value))
+        return self.shell_implementation(*args, **kwargs)
 
     @staticmethod
     def is_help(command: str) -> bool:
