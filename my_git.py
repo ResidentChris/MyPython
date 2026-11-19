@@ -239,22 +239,10 @@ class MyGit(MyAbstractModule):
         self.run(commands)
 
     def checkout(self, commands):
-        ticketList = commands.pop(0)
-        status = []
-        status.append(self.checkout_in_folder(ticketList, self.repositories))
-        if len(list(filter(lambda n: n > 0, status))) > 0:
-            print("%sIncomplete checkout.%s" % (Colour.RED.value, Colour.CLEAR.value))
-        else:
-            self.run(commands)
-
-    def checkout_in_folder(self, ticketList, folder):
-        repo = git.Repo(folder)
-        for ticket in ticketList.split(","):
-            branch = self.resolve_branch(ticket, lambda: repo.git.branch('-a'))
-            if ticket != MAIN_BRANCH:
-                break
-        repo.git.checkout(branch)
-        return 0
+        ticket = commands.pop(0)
+        repo = git.Repo(self.repositories)
+        repo.git.checkout(self.resolve_branch(ticket, lambda: repo.git.branch('-a')))
+        self.run(commands)
 
     def resolve_branch(self, ticket, get_branches):
         literal_ticket = re.escape(ticket)

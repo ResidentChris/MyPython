@@ -5,8 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from my_npm import MyNpm
-from testing_support import FakeProcess, FakeShell, queued_prompt, with_shell
-
+from testing_support import FakeProcess, FakeShell, with_shell
 
 
 class NpmTestCase(unittest.TestCase):
@@ -16,7 +15,7 @@ class NpmTestCase(unittest.TestCase):
         cwd.start()
         self.addCleanup(cwd.stop)
         self.shell = FakeShell()
-        self.npm = with_shell(MyNpm([], {}, '/repo', '/logs', prompt=queued_prompt()), self.shell)
+        self.npm = with_shell(MyNpm([], {}, '/repo', '/logs'), self.shell)
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)

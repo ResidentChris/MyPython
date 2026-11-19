@@ -5,7 +5,6 @@ import re
 import subprocess
 import threading
 import time
-from sys import exit
 from my_colours import Colour
 from my_colours import Options
 from my_module import MyAbstractModule
@@ -126,6 +125,6 @@ def wait(process, text):
     ansi_escape = re.compile(r'\033\[[0-9;]*m')
     assert process.stdout is not None
     for line in process.stdout:
-            print(line, end="")
-            if "compiled successfully" in ansi_escape.sub("", line).lower():
-                break
+        print(line, end="")
+        if text.lower() in ansi_escape.sub("", line).lower():
+            break

@@ -457,7 +457,7 @@ class MyGitAddUntrackedTests(unittest.TestCase):
         git_cmd.run.assert_called_once_with(['status'])
 
 
-class MyGitCheckoutInFolderTests(unittest.TestCase):
+class MyGitCheckoutTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         origin = os.path.join(self.tmp, 'origin.git')
@@ -492,8 +492,7 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
     def test_checks_out_the_single_matching_branch(self):
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
                         prompt=queued_prompt()), FakeShell())
-        status = git_cmd.checkout_in_folder('ABC-123-extra', self.work)
-        self.assertEqual(status, 0)
+        git_cmd.checkout(['ABC-123-extra'])
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
 
     def test_selects_and_checks_out_the_chosen_branch_on_multiple_matches(self):
@@ -505,7 +504,7 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
 
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
                         prompt=queued_prompt(), select=select), FakeShell())
-        git_cmd.checkout_in_folder('ABC-123', self.work)
+        git_cmd.checkout(['ABC-123'])
         self.assertEqual(offered, [['feature/ABC-123', 'feature/ABC-123-extra']])
         self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
 
@@ -513,7 +512,7 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
                         prompt=queued_prompt(), select=queued_select(None)), FakeShell())
         with patch('builtins.print'), self.assertRaises(SystemExit):
-            git_cmd.checkout_in_folder('ABC-123', self.work)
+            git_cmd.checkout(['ABC-123'])
         self.assertEqual(self.current_branch(), 'main')
 
     def test_checks_out_main_directly_regardless_of_match_content(self):
@@ -522,8 +521,16 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
 
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
                         prompt=queued_prompt()), FakeShell())
-        git_cmd.checkout_in_folder('main', self.work)
+        git_cmd.checkout(['main'])
         self.assertEqual(self.current_branch(), 'main')
+
+    def test_continues_with_the_remaining_commands(self):
+        git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
+                        prompt=queued_prompt()), FakeShell())
+        git_cmd.run = MagicMock()
+        git_cmd.checkout(['ABC-123-extra', 'status'])
+        self.assertEqual(self.current_branch(), 'feature/ABC-123-extra')
+        git_cmd.run.assert_called_once_with(['status'])
 
     def test_checks_out_a_local_only_branch(self):
         run_git('checkout', '-q', '-b', 'feature/XYZ-999', 'origin/main', cwd=self.work)
@@ -531,8 +538,7 @@ class MyGitCheckoutInFolderTests(unittest.TestCase):
 
         git_cmd = with_shell(MyGit([], {}, self.work, '/fake/logs',
                         prompt=queued_prompt()), FakeShell())
-        status = git_cmd.checkout_in_folder('XYZ-999', self.work)
-        self.assertEqual(status, 0)
+        git_cmd.checkout(['XYZ-999'])
         self.assertEqual(self.current_branch(), 'feature/XYZ-999')
 
 
