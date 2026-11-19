@@ -11,6 +11,7 @@ Conformance is checked by the tests in test_my_module.py, not at import.
 import inspect
 import shlex
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from typing import Iterable, Protocol, runtime_checkable
 
@@ -96,6 +97,16 @@ class MyAbstractModule(MyModule, ABC):
             text = command if isinstance(command, str) else shlex.join(str(part) for part in command)
             print('%s$ %s%s' % (Colour.BLUE.value, text, Colour.CLEAR.value))
         return self.shell_implementation(*args, **kwargs)
+
+    @staticmethod
+    def exit_if_failed(status: int, what: str) -> None:
+        """If `status` (an exit code) is a failure, say `what` failed and exit with it.
+
+        Stops any later commands from running.
+        """
+        if status != 0:
+            print('%s %sfailed%s.' % (what, Colour.RED.value, Colour.CLEAR.value))
+            sys.exit(status)
 
     @staticmethod
     def is_help(command: str) -> bool:

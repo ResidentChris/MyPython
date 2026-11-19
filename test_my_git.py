@@ -94,6 +94,16 @@ class MyGitPushTests(unittest.TestCase):
         self.assertEqual(shell.calls[0][0][0], ["git", "push", "--force-with-lease"])
         git_cmd.run.assert_called_once_with(['status'])
 
+    def test_push_failure_stops_and_exits_nonzero(self):
+        shell = FakeShell([FakeProcess(returncode=1)])
+        git_cmd = with_shell(MyGit([], {}, '/fake/repo', '/fake/logs',
+                        prompt=queued_prompt()), shell)
+        git_cmd.run = MagicMock()
+        with patch('builtins.print'), self.assertRaises(SystemExit) as raised:
+            git_cmd.push(['status'])
+        self.assertNotEqual(raised.exception.code, 0)
+        git_cmd.run.assert_not_called()
+
 
 class MyGitPullTests(unittest.TestCase):
     def test_pull_delegates_to_gitpython_origin(self):

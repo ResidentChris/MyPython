@@ -74,7 +74,8 @@ class MyHarness(MyAbstractModule):
             chromium.kill()
 
     def web_build(self):
-        self.shell(["npm", "install"], cwd=self.folder).wait()
+        status = self.shell(["npm", "install"], cwd=self.folder).wait()
+        self.exit_if_failed(status, 'npm install')
 
     def ios(self, commands):
         print("The iOS harness is not implemented yet.")

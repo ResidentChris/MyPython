@@ -65,29 +65,23 @@ class MyGradle(MyAbstractModule):
                 commands.insert(0, command)
 
     def clean(self, commands):
-        cwd = self.shell([self.gradlew(os.getcwd()), "clean"], cwd=os.getcwd())
-        cwd.wait()
+        status = self.shell([self.gradlew(os.getcwd()), "clean"], cwd=os.getcwd()).wait()
+        self.exit_if_failed(status, 'Clean')
         self.run(commands)
 
     def test(self, commands):
-        cwd = self.shell([self.gradlew(os.getcwd()), 'test'], cwd=os.getcwd())
-        status = cwd.wait()
-        if status != 0:
-            print('Tests %sfailed%s.' % (Colour.RED.value, Colour.CLEAR.value))
-            sys.exit(status)
+        status = self.shell([self.gradlew(os.getcwd()), 'test'], cwd=os.getcwd()).wait()
+        self.exit_if_failed(status, 'Tests')
         self.run(commands)
 
     def publish(self, commands):
-        cwd = self.shell([self.gradlew(os.getcwd()), 'publishToMavenLocal'], cwd=os.getcwd())
-        status = cwd.wait()
-        if status != 0:
-            print('Publish to Maven Local %sfailed%s.' % (Colour.RED.value, Colour.CLEAR.value))
-            sys.exit(status)
+        status = self.shell([self.gradlew(os.getcwd()), 'publishToMavenLocal'], cwd=os.getcwd()).wait()
+        self.exit_if_failed(status, 'Publish to Maven Local')
         self.run(commands)
 
     def format(self, commands):
-        cwd = self.shell([self.gradlew(os.getcwd()), 'format'], cwd=os.getcwd())
-        cwd.wait()
+        status = self.shell([self.gradlew(os.getcwd()), 'format'], cwd=os.getcwd()).wait()
+        self.exit_if_failed(status, 'Format')
         self.run(commands)
 
     def build(self, commands, skip_tests = False):

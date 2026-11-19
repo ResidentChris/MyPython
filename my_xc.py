@@ -37,10 +37,11 @@ class MyXc(MyAbstractModule):
                 commands.insert(0, command)
 
     def test(self, commands):
-        self.shell([
+        status = self.shell([
             "xcodebuild", "test",
             "-workspace", self.workspace,
             "-scheme", self.scheme,
             "-destination", DESTINATION,
         ], cwd=self.folder).wait()
+        self.exit_if_failed(status, 'Tests')
         self.run(commands)
