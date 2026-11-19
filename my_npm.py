@@ -14,8 +14,7 @@ class MyNpm(MyAbstractModule):
     def description(cls):
         return 'Clean or start the npm project'
 
-    def __init__(self, commands, arguments, repositories, logs, prompt=input):
-        self.prompt = prompt
+    def __init__(self, commands, arguments, repositories, logs):
         self.descriptions = {
             'clean': 'Delete node_modules and run npm install',
             'start': 'Run npm start',

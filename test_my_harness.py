@@ -4,7 +4,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from my_harness import MyHarness
+from my_harness import MyHarness, wait
 from testing_support import FakeProcess, FakeShell, with_shell
 
 ARGUMENTS = {'harness': {'folder': '/harness', 'url': 'https://localhost:8080'}}
@@ -81,6 +81,14 @@ class MyHarnessWebRunTests(unittest.TestCase):
             running.join(timeout=10)
         self.assertFalse(running.is_alive(), 'the harness blocked writing its output')
         self.assertEqual(harness_process.returncode, 0)
+
+
+class WaitTests(unittest.TestCase):
+    def test_stops_reading_after_the_line_with_the_given_text(self):
+        process = FakeProcess(stdout=b'starting\n\033[32mServer READY\033[0m\nlater\n')
+        with patch('builtins.print'):
+            wait(process, 'server ready')
+        self.assertEqual(process.stdout.read(), 'later\n')
 
 
 if __name__ == '__main__':
