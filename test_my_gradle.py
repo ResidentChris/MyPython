@@ -84,6 +84,18 @@ class MyGradleCleanFormatTests(GradlewPresentTestCase):
         self.assertNotEqual(raised.exception.code, 0)
         self.assertEqual([call[0][0] for call in shell.calls], [['./gradlew', 'test']])
 
+    def test_clean_and_format_failures_stop_and_exit_nonzero(self):
+        for command, task in [('clean', 'clean'), ('format', 'format')]:
+            with self.subTest(command=command):
+                shell = FakeShell([FakeProcess(returncode=1)])
+                with patch('my_gradle.os.getcwd', return_value='/cwd/project'):
+                    gradle = with_shell(MyGradle([], {}, '/repo',
+                                      '/logs', prompt=queued_prompt()), shell)
+                    with self.assertRaises(SystemExit) as raised:
+                        gradle.run([command, 'test'])
+                self.assertNotEqual(raised.exception.code, 0)
+                self.assertEqual([call[0][0] for call in shell.calls], [['./gradlew', task]])
+
     def test_publish_runs_publish_to_maven_local_in_cwd(self):
         shell = FakeShell()
         with patch('my_gradle.os.getcwd', return_value='/cwd/project'):

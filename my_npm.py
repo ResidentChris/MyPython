@@ -43,7 +43,8 @@ class MyNpm(MyAbstractModule):
             print('Deleting node_modules...', end=' ')
             rmtree(node_modules)
             print('done.')
-        self.shell(['npm', 'install'], cwd=os.getcwd()).wait()
+        status = self.shell(['npm', 'install'], cwd=os.getcwd()).wait()
+        self.exit_if_failed(status, 'npm install')
         self.run(commands)
 
     def start(self, commands):

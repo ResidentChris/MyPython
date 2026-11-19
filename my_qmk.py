@@ -40,13 +40,15 @@ class MyQmk(MyAbstractModule):
                 commands.insert(0, command)
 
     def compile(self, commands):
-        self.shell(
+        status = self.shell(
             ["qmk", "compile", "-kb", self.keyboard, "-km", self.keymap],
             cwd=self.folder).wait()
+        self.exit_if_failed(status, 'Compile')
         self.run(commands)
 
     def flash(self, commands):
-        self.shell(
+        status = self.shell(
             ["qmk", "flash", "-kb", self.keyboard, "-km", self.keymap],
             cwd=self.folder).wait()
+        self.exit_if_failed(status, 'Flash')
         self.run(commands)

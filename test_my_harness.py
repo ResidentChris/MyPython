@@ -47,6 +47,14 @@ class MyHarnessWebTests(unittest.TestCase):
         self.assertEqual(commands, [])
         self.assertEqual(run[:2], [['npm', 'install'], ['npm', 'run', 'harness:web']])
 
+    def test_build_failure_stops_and_exits_nonzero(self):
+        self.shell = FakeShell([FakeProcess(returncode=1)])
+        with_shell(self.harness, self.shell)
+        with self.assertRaises(SystemExit) as raised:
+            self.run_harness(['web', 'build', 'run'])
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertEqual([call[0][0] for call in self.shell.calls], [['npm', 'install']])
+
     def test_harness_commands_after_web_still_run(self):
         commands = ['web', 'build', 'ios']
         self.run_harness(commands)

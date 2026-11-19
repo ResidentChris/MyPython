@@ -141,7 +141,8 @@ class MyGit(MyAbstractModule):
         if len(commands) > 0 and commands[0] == 'up':
             commands.pop(0)
             command += ["--set-upstream", "origin", "HEAD"]
-        self.shell(command, cwd=self.repositories).wait()
+        status = self.shell(command, cwd=self.repositories).wait()
+        self.exit_if_failed(status, 'Push')
         self.run(commands)
 
     def diff(self, commands):

@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from my_npm import MyNpm
-from testing_support import FakeShell, queued_prompt, with_shell
+from testing_support import FakeProcess, FakeShell, queued_prompt, with_shell
 
 
 
@@ -35,6 +35,15 @@ class MyNpmCleanTests(NpmTestCase):
         with patch('builtins.print'):
             self.npm.clean([])
         self.assertEqual(self.shell.calls, [((['npm', 'install'],), {'cwd': self.tmp})])
+
+
+    def test_clean_install_failure_stops_and_exits_nonzero(self):
+        shell = FakeShell([FakeProcess(returncode=1)])
+        with_shell(self.npm, shell)
+        with patch('builtins.print'), self.assertRaises(SystemExit) as raised:
+            self.npm.run(['clean', 'start'])
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertEqual(shell.calls, [((['npm', 'install'],), {'cwd': self.tmp})])
 
 
 class MyNpmStartTests(NpmTestCase):
