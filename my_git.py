@@ -31,7 +31,7 @@ REVIEW_QUESTION = "%s? [C] " % Options(['Add', Colour.GREEN], ['Undo', Colour.RE
 
 
 def select_instruction():
-    return "(Use arrow keys) %s" % Options(REFRESH_OPTION, CANCEL_OPTION)
+    return "↑↓ %s" % Options(REFRESH_OPTION, CANCEL_OPTION)
 
 
 def _colour_instruction(get_prompt_tokens):
