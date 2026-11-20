@@ -7,7 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import git
 
-from my_git import MyGit, REFRESH, default_select
+from my_colours import Colour, Options
+from my_git import MyGit, REFRESH, default_prompt, default_select, select_instruction
 from testing_support import FakeProcess, FakeShell, queued_prompt, queued_select, with_shell
 
 
@@ -294,6 +295,38 @@ class DefaultSelectTests(unittest.TestCase):
 
     def test_escape_cancels(self):
         self.assertIsNone(self.press('\x1b'))
+
+    def test_c_cancels(self):
+        for key in ['c', 'C']:
+            with self.subTest(key=key):
+                self.assertIsNone(self.press(key))
+
+    def test_instruction_shows_the_same_options_as_the_review_prompt(self):
+        refresh = Options(['Refresh', Colour.BLUE])
+        cancel = Options(['Cancel', Colour.CLEAR])
+        self.assertIn(str(refresh), select_instruction())
+        self.assertIn(str(cancel), select_instruction())
+
+
+class DefaultPromptTests(unittest.TestCase):
+    """Drives the real review prompt with simulated keypresses."""
+
+    def press(self, keys):
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import create_pipe_input
+        from prompt_toolkit.output import DummyOutput
+        with create_pipe_input() as pipe, create_app_session(input=pipe, output=DummyOutput()):
+            pipe.send_text(keys)
+            return default_prompt('? ')
+
+    def test_typed_answer_is_returned(self):
+        self.assertEqual(self.press('a\r'), 'a')
+
+    def test_enter_alone_returns_nothing(self):
+        self.assertEqual(self.press('\r'), '')
+
+    def test_escape_cancels(self):
+        self.assertEqual(self.press('\x1b'), 'C')
 
 
 class MyGitChooseTests(unittest.TestCase):
