@@ -6,7 +6,10 @@ import questionary
 import re
 import subprocess
 from prompt_toolkit.formatted_text import ANSI
+from prompt_toolkit import prompt as pt_prompt
+from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
+from questionary.prompts import common as questionary_common
 from sys import exit
 from my_colours import Colour
 from my_colours import Options
@@ -19,23 +22,68 @@ ANSI_ESCAPE = re.compile(r'\033\[[0-9;]*m')
 # Returned by a select when the user asks for the list to be refreshed.
 REFRESH = 'refresh'
 REFRESH_KEYS = ('r', 'R', 'd', 'D')
+CANCEL_KEYS = ('c', 'C')
+
+# Shared so the review prompt and the selectable lists look the same.
+REFRESH_OPTION = ['Refresh', Colour.BLUE]
+CANCEL_OPTION = ['Cancel', Colour.CLEAR]
+REVIEW_QUESTION = "%s? [C] " % Options(['Add', Colour.GREEN], ['Undo', Colour.RED], REFRESH_OPTION, CANCEL_OPTION)
+
+
+def select_instruction():
+    return "↑↓ %s" % Options(REFRESH_OPTION, CANCEL_OPTION)
+
+
+def _colour_instruction(get_prompt_tokens):
+    """Wraps questionary's prompt tokens so the instruction's ANSI colours are rendered."""
+    def tokens():
+        result = []
+        for style, text in get_prompt_tokens():
+            if style == 'class:instruction':
+                result.extend(ANSI(text).__pt_formatted_text__())
+            else:
+                result.append((style, text))
+        return result
+    return tokens
 
 
 def default_select(items):
     choices = [questionary.Choice(title=ANSI(item).__pt_formatted_text__(), value=i)
                for i, item in enumerate(items)]
     choices.append(questionary.Separator(" "))
-    question = questionary.select("", choices=choices, instruction="(Use arrow keys, r to refresh)")
+
+    # questionary only renders the instruction as plain text.
+    original_layout = questionary_common.create_inquirer_layout
+    questionary_common.create_inquirer_layout = \
+        lambda ic, get_prompt_tokens, **kwargs: original_layout(ic, _colour_instruction(get_prompt_tokens), **kwargs)
+    try:
+        question = questionary.select("", choices=choices, instruction=select_instruction())
+    finally:
+        questionary_common.create_inquirer_layout = original_layout
     bindings = question.application.key_bindings
 
     @bindings.add(Keys.Escape, eager=True)
     def _cancel(event):
         event.app.exit(result=None)
 
+    for key in CANCEL_KEYS:
+        bindings.add(key, eager=True)(_cancel)
+
     for key in REFRESH_KEYS:
         bindings.add(key, eager=True)(lambda event: event.app.exit(result=REFRESH))
 
     return question.ask()
+
+
+def default_prompt(message):
+    """Reads a line like input(), but Escape cancels straight away."""
+    bindings = KeyBindings()
+
+    @bindings.add(Keys.Escape, eager=True)
+    def _cancel(event):
+        event.app.exit(result='C')
+
+    return pt_prompt(ANSI(message), key_bindings=bindings)
 
 
 def git_error(error):
@@ -70,7 +118,7 @@ class MyGit(MyAbstractModule):
         return 'Pull, push, review, add, checkout, or create branches'
 
     def __init__(self, commands, arguments, repositories, logs,
-                 prompt=input, select=default_select):
+                 prompt=default_prompt, select=default_select):
         self.repositories = repositories
         self.prompt = prompt
         self.select = select
@@ -182,8 +230,7 @@ class MyGit(MyAbstractModule):
         diff.wait()
 
         print("\n%s" % file)
-        print("%s? [C]" % Options(['Add', Colour.GREEN], ['Undo', Colour.RED], ['Refresh', Colour.BLUE], ['Cancel', Colour.CLEAR]), end=" ")
-        response = self.prompt()
+        response = self.prompt(REVIEW_QUESTION)
         if response.upper() in ("R", "D"):
             commands.insert(0, strIndex)
             self.diff(commands)
@@ -218,8 +265,7 @@ class MyGit(MyAbstractModule):
             self.shell(["git", "diff", "--no-index", "--", "/dev/null", file]).wait()
 
             print("\n%s" % file)
-            print("%s? [C]" % Options(['Add', Colour.GREEN], ['Undo', Colour.RED], ['Refresh', Colour.BLUE], ['Cancel', Colour.CLEAR]), end=" ")
-            response = self.prompt().upper()
+            response = self.prompt(REVIEW_QUESTION).upper()
             if response not in ("R", "D"):
                 break
 
